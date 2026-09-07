@@ -1,0 +1,20 @@
+{
+  "name": "project-starter",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "^20.19.0 || ^22.13.0 || >=24.0.0"
+  },
+  "scripts": {
+    "build": "esbuild src/index.js --bundle --format=esm --minify --outfile=dist/bundle.js",
+    "dev": "node dev.mjs",
+    "tag": "node tag.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.12",
+    "jsdom": "^29.1.1",
+    "vitest": "^4.1.10"
+  }
+}
