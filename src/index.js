@@ -12,6 +12,9 @@ function start() {
   } else {
     document.documentElement.classList.add(`${namespace}-ready`);
   }
+  console.log(`[${namespace}] JS ready`, {
+    modules: Object.keys(project.modules),
+  });
 }
 
 if (document.readyState === "loading") {

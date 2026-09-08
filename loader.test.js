@@ -38,6 +38,22 @@ describe("loader", () => {
     expect(window.starter.boot.commit).toBe("1234567890abcdef");
   });
 
+  it("logs the environment and URL when the bundle loads", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    window.history.replaceState({}, "", "/?env=live");
+    await runLoader();
+
+    const bundle = document.head.querySelector('script[type="module"]');
+    bundle.onload();
+
+    expect(log).toHaveBeenCalledWith("[starter] JS bundle loaded", {
+      environment: "live",
+      source: "live",
+      url: bundle.src,
+      commit: "1234567890abcdef",
+    });
+  });
+
   it("uses a valid commit override and shows the panel", async () => {
     window.history.replaceState({}, "", "/?dev=1&env=live&commit=abcdef1234567");
     await runLoader();
