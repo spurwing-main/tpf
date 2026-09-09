@@ -47,9 +47,21 @@ function createMatchMedia(matches = false) {
 }
 
 function createGsap() {
+	const applyAutoAlpha = (targets, variables) => {
+		if (variables.autoAlpha === undefined) return;
+		const elements = Array.isArray(targets) ? targets : [targets];
+		elements.forEach((element) => {
+			element.style.opacity = String(variables.autoAlpha);
+			element.style.visibility = variables.autoAlpha === 0 ? "hidden" : "inherit";
+		});
+	};
+
 	return {
-		set: vi.fn(),
-		to: vi.fn(() => ({ kill: vi.fn() })),
+		set: vi.fn((targets, variables) => applyAutoAlpha(targets, variables)),
+		to: vi.fn((targets, variables) => {
+			applyAutoAlpha(targets, variables);
+			return { kill: vi.fn() };
+		}),
 		killTweensOf: vi.fn(),
 	};
 }
@@ -90,5 +102,88 @@ describe("initValues", () => {
 
 		expect(document.querySelectorAll('[data-values-generated="index"]')).toHaveLength(0);
 		expect(document.querySelectorAll(".values_media")).toHaveLength(3);
+	});
+
+	it("builds every desktop clone and initially shows the open item's media", () => {
+		renderValues();
+		const mediaQuery = createMatchMedia(true);
+		vi.stubGlobal("matchMedia", vi.fn((query) =>
+			query === "(min-width: 768px)" ? mediaQuery : { matches: false },
+		));
+		cleanup = initValues(document, createGsap());
+
+		const clones = [...document.querySelectorAll('[data-values-generated="media"]')];
+		expect(clones).toHaveLength(3);
+		expect(clones.map((clone) => clone.querySelector(".values_media-title").textContent)).toEqual([
+			"Integrity",
+			"Human first",
+			"Quality",
+		]);
+		expect(clones[0].classList.contains("is-active")).toBe(true);
+		expect(clones[0].getAttribute("aria-hidden")).toBe("false");
+		expect(clones[1].hasAttribute("inert")).toBe(true);
+	});
+
+	it("crossfades when another accordion item becomes open", async () => {
+		renderValues();
+		const mediaQuery = createMatchMedia(true);
+		vi.stubGlobal("matchMedia", vi.fn((query) =>
+			query === "(min-width: 768px)" ? mediaQuery : { matches: false },
+		));
+		const gsap = createGsap();
+		cleanup = initValues(document, gsap);
+		const [first, second] = document.querySelectorAll(".value-item");
+
+		first.classList.remove("is-open");
+		second.classList.add("is-open");
+		await Promise.resolve();
+
+		const clones = [...document.querySelectorAll('[data-values-generated="media"]')];
+		expect(clones[0].classList.contains("is-active")).toBe(false);
+		expect(clones[1].classList.contains("is-active")).toBe(true);
+		expect(gsap.killTweensOf).toHaveBeenCalled();
+		expect(gsap.to).toHaveBeenCalledWith(clones[1], expect.objectContaining({
+			autoAlpha: 1,
+			duration: 0.4,
+			ease: "power2.out",
+			overwrite: "auto",
+		}));
+	});
+
+	it("keeps the last media selected when its accordion item closes", async () => {
+		renderValues();
+		vi.stubGlobal("matchMedia", vi.fn((query) => ({ matches: query.includes("min-width") })));
+		cleanup = initValues(document, createGsap());
+		const first = document.querySelector(".value-item");
+
+		first.classList.remove("is-open");
+		await Promise.resolve();
+
+		expect(document.querySelector('[data-values-generated="media"].is-active .values_media-title').textContent).toBe("Integrity");
+	});
+
+	it("uses immediate crossfades when reduced motion is preferred", async () => {
+		renderValues();
+		const desktopQuery = createMatchMedia(true);
+		const reducedMotionQuery = createMatchMedia(true);
+		vi.stubGlobal("matchMedia", vi.fn((query) =>
+			query === "(min-width: 768px)" ? desktopQuery : reducedMotionQuery,
+		));
+		const gsap = createGsap();
+		cleanup = initValues(document, gsap);
+		const [first, second] = document.querySelectorAll(".value-item");
+
+		first.classList.remove("is-open");
+		second.classList.add("is-open");
+		await Promise.resolve();
+
+		expect(gsap.to).toHaveBeenCalledWith(expect.any(Element), expect.objectContaining({
+			autoAlpha: 0,
+			duration: 0,
+		}));
+		expect(gsap.to).toHaveBeenCalledWith(expect.any(Element), expect.objectContaining({
+			autoAlpha: 1,
+			duration: 0,
+		}));
 	});
 });
