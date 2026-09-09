@@ -170,6 +170,7 @@ function createComponentRecord(component, gsap) {
 			if (
 				mutation.type === "attributes"
 				&& mutation.target.matches(selectors.item)
+				&& mutation.target.closest(selectors.component) === record.element
 				&& mutation.target.classList.contains("is-open")
 			) activateItem(record, mutation.target);
 		}

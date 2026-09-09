@@ -186,4 +186,44 @@ describe("initValues", () => {
 			duration: 0,
 		}));
 	});
+
+	it("keeps the outer selection when a nested Values item opens", async () => {
+		renderValues({ titles: ["Outer first", "Outer second"] });
+		document.querySelector(".value-item_content").innerHTML = `
+			<section class="values">
+				<div class="values_content">
+					<div class="values_items" data-accordion="component">
+						<div class="value-item is-open" data-accordion="item">
+							${mediaCard("Nested first")}
+						</div>
+						<div class="value-item" data-accordion="item">
+							${mediaCard("Nested second")}
+						</div>
+					</div>
+					<div class="values_media-stage"></div>
+				</div>
+			</section>
+		`;
+		const mediaQuery = createMatchMedia(true);
+		vi.stubGlobal("matchMedia", vi.fn((query) =>
+			query === "(min-width: 768px)" ? mediaQuery : { matches: false },
+		));
+		cleanup = initValues(document, createGsap());
+		const outerComponent = document.body.firstElementChild;
+		const outerItems = [...outerComponent.querySelector(":scope > .values_content > .values_items").children];
+		const outerStage = outerComponent.querySelector(":scope > .values_content > .values_media-stage");
+		const nestedItems = [...outerComponent.querySelector(".value-item_content .values_items").children];
+
+		outerItems[0].classList.remove("is-open");
+		outerItems[1].classList.add("is-open");
+		await Promise.resolve();
+		outerItems[1].classList.remove("is-open");
+		nestedItems[0].classList.remove("is-open");
+		nestedItems[1].classList.add("is-open");
+		await Promise.resolve();
+		mediaQuery.setMatches(false);
+		mediaQuery.setMatches(true);
+
+		expect(outerStage.querySelector('.is-active .values_media-title').textContent).toBe("Outer second");
+	});
 });
