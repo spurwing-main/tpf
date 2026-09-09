@@ -100,6 +100,10 @@ function activateItem(record, item, animate = true) {
 		return;
 	}
 
+	const staleClones = [...record.clones.values()].filter(
+		(clone) => clone !== previousClone && clone !== nextClone,
+	);
+	if (staleClones.length) record.gsap.set(staleClones, { autoAlpha: 0 });
 	record.gsap.to(previousClone, { autoAlpha: 0, duration, ease: EASE, overwrite: "auto" });
 	record.gsap.to(nextClone, { autoAlpha: 1, duration, ease: EASE, overwrite: "auto" });
 }

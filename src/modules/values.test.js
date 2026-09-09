@@ -81,6 +81,27 @@ function createGsap() {
 	};
 }
 
+function createDeferredGsap() {
+	const applyAutoAlpha = (targets, variables) => {
+		if (variables.autoAlpha === undefined) return;
+		const elements = Array.isArray(targets) ? targets : [targets];
+		elements.forEach((element) => {
+			element.style.opacity = String(variables.autoAlpha);
+			element.style.visibility = variables.autoAlpha === 0 ? "hidden" : "inherit";
+		});
+	};
+
+	return {
+		set: vi.fn((targets, variables) => applyAutoAlpha(targets, variables)),
+		to: vi.fn((target) => {
+			target.style.opacity = "0.5";
+			target.style.visibility = "inherit";
+			return { kill: vi.fn() };
+		}),
+		killTweensOf: vi.fn(),
+	};
+}
+
 describe("initValues", () => {
 	let cleanup;
 
@@ -163,6 +184,30 @@ describe("initValues", () => {
 			ease: "power2.out",
 			overwrite: "auto",
 		}));
+	});
+
+	it("hides stale interrupted clones during rapid item changes", async () => {
+		renderValues();
+		const mediaQuery = createMatchMedia(true);
+		vi.stubGlobal("matchMedia", vi.fn((query) =>
+			query === "(min-width: 768px)" ? mediaQuery : { matches: false },
+		));
+		cleanup = initValues(document, createDeferredGsap());
+		const [first, second, third] = document.querySelectorAll(".value-item");
+
+		first.classList.remove("is-open");
+		second.classList.add("is-open");
+		await flushMutations();
+		second.classList.remove("is-open");
+		third.classList.add("is-open");
+		await flushMutations();
+
+		const clones = [...document.querySelectorAll('[data-values-generated="media"]')];
+		expect(clones[0].style.opacity).toBe("0");
+		expect(clones[0].style.visibility).toBe("hidden");
+		expect(clones[1].style.opacity).toBe("0.5");
+		expect(clones[2].style.opacity).toBe("0.5");
+		expect(clones.filter((clone) => clone.classList.contains("is-active"))).toEqual([clones[2]]);
 	});
 
 	it("keeps the last media selected when its accordion item closes", async () => {
