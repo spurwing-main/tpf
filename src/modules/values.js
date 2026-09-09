@@ -43,7 +43,9 @@ function warnOnce(element, message) {
 }
 
 function removeGeneratedIndices(record) {
-	record.element.querySelectorAll('[data-values-generated="index"]').forEach((node) => node.remove());
+	record.element.querySelectorAll('[data-values-generated="index"]').forEach((node) => {
+		if (node.closest(selectors.component) === record.element) node.remove();
+	});
 }
 
 function syncSources(record) {
@@ -53,17 +55,21 @@ function syncSources(record) {
 
 	items.forEach((item, index) => {
 		const media = getItemMedia(item);
-		const content = media?.querySelector(selectors.mediaContent);
-		if (!media || !content) {
-			warnOnce(item, "[values] Skipped an item because its media subcomponent is incomplete.");
+		if (!media) {
+			warnOnce(item, "[values] Skipped an item because it needs a .values_media element.");
 			return;
 		}
 
-		const indexElement = item.ownerDocument.createElement("div");
-		indexElement.className = "values_media-index";
-		indexElement.dataset.valuesGenerated = "index";
-		indexElement.textContent = formatIndex(index + 1, items.length);
-		content.append(indexElement);
+		const content = media.querySelector(selectors.mediaContent);
+		if (!content) {
+			warnOnce(item, "[values] An item needs a .values_media-content-inner element; its index was skipped.");
+		} else {
+			const indexElement = item.ownerDocument.createElement("div");
+			indexElement.className = "values_media-index";
+			indexElement.dataset.valuesGenerated = "index";
+			indexElement.textContent = formatIndex(index + 1, items.length);
+			content.append(indexElement);
+		}
 		record.sources.push({ item, media });
 	});
 }
@@ -121,10 +127,25 @@ function buildDesktopStack(record) {
 
 function destroyDesktopStack(record) {
 	record.gsap.killTweensOf([...record.clones.values()]);
-	record.stage?.querySelectorAll('[data-values-generated="media"]').forEach((clone) => clone.remove());
+	record.clones.forEach((clone) => clone.remove());
 	record.clones.clear();
 	record.activeClone = null;
 	record.isDesktop = false;
+}
+
+function rebuildForItemsChange(record) {
+	const previousActiveItem = record.activeItem;
+	if (record.isDesktop) destroyDesktopStack(record);
+	syncSources(record);
+
+	const stillPresent = record.sources.some(({ item }) => item === previousActiveItem);
+	record.activeItem = stillPresent
+		? previousActiveItem
+		: record.sources.find(({ item }) => item.classList.contains("is-open"))?.item
+			?? record.sources[0]?.item
+			?? null;
+
+	if (record.mediaQuery?.matches) buildDesktopStack(record);
 }
 
 function createComponentRecord(component, gsap) {
@@ -142,6 +163,9 @@ function createComponentRecord(component, gsap) {
 	const stage = [...component.querySelectorAll(selectors.stage)].find(
 		(element) => element.closest(selectors.component) === component,
 	) ?? null;
+	if (!stage) {
+		warnOnce(component, "[values] Skipped desktop media because the component needs a .values_media-stage element.");
+	}
 	const mediaQuery = globalThis.matchMedia?.(DESKTOP_QUERY);
 	const record = {
 		element: component,
@@ -166,6 +190,10 @@ function createComponentRecord(component, gsap) {
 	mediaQuery?.addEventListener?.("change", record.onMediaChange);
 	syncSources(record);
 	record.observer = new MutationObserver((mutations) => {
+		if (mutations.some((mutation) => mutation.type === "childList" && mutation.target === record.itemsElement)) {
+			rebuildForItemsChange(record);
+		}
+
 		for (const mutation of mutations) {
 			if (
 				mutation.type === "attributes"
@@ -188,8 +216,8 @@ function createComponentRecord(component, gsap) {
 
 function destroyComponentRecord(record) {
 	if (!record || componentRecords.get(record.element) !== record) return;
-	record.mediaQuery?.removeEventListener?.("change", record.onMediaChange);
 	record.observer?.disconnect();
+	record.mediaQuery?.removeEventListener?.("change", record.onMediaChange);
 	destroyDesktopStack(record);
 	removeGeneratedIndices(record);
 	record.sources = [];
@@ -201,18 +229,49 @@ export function initValues(root = document, gsap = globalThis.gsap) {
 	if (existingCleanup) return existingCleanup;
 
 	if (!gsap?.set || !gsap?.to || !gsap?.killTweensOf) {
-		console.warn("[values] GSAP was not found. Load GSAP before initializing values.");
+		console.warn("[values] GSAP was not found. Load GSAP before initializing Values.");
 		return () => {};
 	}
 
-	const records = getMatchingTree(root, selectors.component)
-		.map((component) => createComponentRecord(component, gsap))
-		.filter(Boolean);
+	const records = new Set();
+	const initializeComponent = (component) => {
+		if (componentRecords.has(component)) return;
+		const record = createComponentRecord(component, gsap);
+		if (record) records.add(record);
+	};
+	getMatchingTree(root, selectors.component).forEach(initializeComponent);
+
+	const rootObserver = new MutationObserver((mutations) => {
+		for (const mutation of mutations) {
+			for (const removedNode of mutation.removedNodes) {
+				if (removedNode.nodeType !== 1) continue;
+				for (const component of getMatchingTree(removedNode, selectors.component)) {
+					const record = componentRecords.get(component);
+					if (!records.has(record)) continue;
+					destroyComponentRecord(record);
+					records.delete(record);
+				}
+			}
+		}
+
+		for (const mutation of mutations) {
+			for (const addedNode of mutation.addedNodes) {
+				if (addedNode.nodeType !== 1) continue;
+				for (const component of getMatchingTree(addedNode, selectors.component)) {
+					if (root !== component && !root.contains?.(component)) continue;
+					initializeComponent(component);
+				}
+			}
+		}
+	});
+	rootObserver.observe(root, { childList: true, subtree: true });
 	let isCleanedUp = false;
 	const cleanup = () => {
 		if (isCleanedUp) return;
 		isCleanedUp = true;
+		rootObserver.disconnect();
 		records.forEach(destroyComponentRecord);
+		records.clear();
 		initializedRoots.delete(root);
 	};
 

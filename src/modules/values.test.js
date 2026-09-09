@@ -14,23 +14,31 @@ function mediaCard(title) {
 	`;
 }
 
-function renderValues({ titles = ["Integrity", "Human first", "Quality"] } = {}) {
-	document.body.innerHTML = `
-		<section class="values">
+function valueItem(title, isOpen = false) {
+	return `
+		<div class="value-item${isOpen ? " is-open" : ""}" data-accordion="item">
+			<button class="value-item_header" data-accordion="trigger" type="button">${title}</button>
+			<div class="value-item_content" data-accordion="content">Body</div>
+			${mediaCard(title)}
+		</div>
+	`;
+}
+
+function valuesMarkup({ titles = ["Integrity", "Human first", "Quality"], id = "" } = {}) {
+	return `
+		<section class="values"${id ? ` id="${id}"` : ""}>
 			<div class="values_content">
 				<div class="values_items" data-accordion="component">
-					${titles.map((title, index) => `
-						<div class="value-item${index === 0 ? " is-open" : ""}" data-accordion="item">
-							<button class="value-item_header" data-accordion="trigger" type="button">${title}</button>
-							<div class="value-item_content" data-accordion="content">Body</div>
-							${mediaCard(title)}
-						</div>
-					`).join("")}
+					${titles.map((title, index) => valueItem(title, index === 0)).join("")}
 				</div>
 				<div class="values_media-stage"></div>
 			</div>
 		</section>
 	`;
+}
+
+function renderValues(options) {
+	document.body.innerHTML = valuesMarkup(options);
 }
 
 function createMatchMedia(matches = false) {
@@ -43,7 +51,14 @@ function createMatchMedia(matches = false) {
 			this.matches = nextMatches;
 			listeners.forEach((listener) => listener({ matches: nextMatches }));
 		},
+		listenerCount() {
+			return listeners.size;
+		},
 	};
+}
+
+async function flushMutations() {
+	await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 function createGsap() {
@@ -225,5 +240,244 @@ describe("initValues", () => {
 		mediaQuery.setMatches(true);
 
 		expect(outerStage.querySelector('.is-active .values_media-title').textContent).toBe("Outer second");
+	});
+
+	it("builds desktop clones for the currently open mobile item when the query starts matching", async () => {
+		renderValues();
+		const mediaQuery = createMatchMedia(false);
+		vi.stubGlobal("matchMedia", vi.fn((query) =>
+			query === "(min-width: 768px)" ? mediaQuery : { matches: false },
+		));
+		cleanup = initValues(document, createGsap());
+		const [first, second] = document.querySelectorAll(".value-item");
+
+		first.classList.remove("is-open");
+		second.classList.add("is-open");
+		await flushMutations();
+		mediaQuery.setMatches(true);
+
+		const clones = [...document.querySelectorAll('[data-values-generated="media"]')];
+		expect(clones).toHaveLength(3);
+		expect(document.querySelector('[data-values-generated="media"].is-active .values_media-title').textContent).toBe("Human first");
+	});
+
+	it("removes desktop clones without removing original media when the query stops matching", () => {
+		renderValues();
+		const mediaQuery = createMatchMedia(true);
+		vi.stubGlobal("matchMedia", vi.fn((query) =>
+			query === "(min-width: 768px)" ? mediaQuery : { matches: false },
+		));
+		cleanup = initValues(document, createGsap());
+
+		mediaQuery.setMatches(false);
+
+		expect(document.querySelectorAll('[data-values-generated="media"]')).toHaveLength(0);
+		expect(document.querySelectorAll(".value-item > .values_media")).toHaveLength(3);
+	});
+
+	it("reindexes a newly appended direct item without selecting it", async () => {
+		renderValues();
+		const mediaQuery = createMatchMedia(true);
+		vi.stubGlobal("matchMedia", vi.fn((query) =>
+			query === "(min-width: 768px)" ? mediaQuery : { matches: false },
+		));
+		cleanup = initValues(document, createGsap());
+		const items = document.querySelector(".values_items");
+		items.insertAdjacentHTML("beforeend", valueItem("Curiosity"));
+
+		await flushMutations();
+
+		expect([...document.querySelectorAll(".value-item .values_media-index")].map((node) => node.textContent)).toEqual([
+			"01 / 04",
+			"02 / 04",
+			"03 / 04",
+			"04 / 04",
+		]);
+		expect(document.querySelectorAll('[data-values-generated="media"]')).toHaveLength(4);
+		expect(document.querySelector('[data-values-generated="media"].is-active .values_media-title').textContent).toBe("Integrity");
+	});
+
+	it("recalculates positions and totals in DOM order after removal and reordering", async () => {
+		renderValues();
+		vi.stubGlobal("matchMedia", vi.fn(() => createMatchMedia(false)));
+		cleanup = initValues(document, createGsap());
+		const items = document.querySelector(".values_items");
+		const [first, second, third] = items.children;
+
+		second.remove();
+		items.prepend(third);
+		await flushMutations();
+
+		expect([...items.children].map((item) => ({
+			title: item.querySelector(".value-item_header").textContent,
+			index: item.querySelector(".values_media-index").textContent,
+		}))).toEqual([
+			{ title: "Quality", index: "01 / 02" },
+			{ title: "Integrity", index: "02 / 02" },
+		]);
+		expect(items.contains(first)).toBe(true);
+	});
+
+	it("keeps state changes isolated between sibling Values components", async () => {
+		document.body.innerHTML = [
+			valuesMarkup({ titles: ["First A", "First B"], id: "first-values" }),
+			valuesMarkup({ titles: ["Second A", "Second B"], id: "second-values" }),
+		].join("");
+		const mediaQuery = createMatchMedia(true);
+		vi.stubGlobal("matchMedia", vi.fn((query) =>
+			query === "(min-width: 768px)" ? mediaQuery : { matches: false },
+		));
+		cleanup = initValues(document, createGsap());
+		const secondItems = document.querySelectorAll("#second-values .value-item");
+
+		secondItems[0].classList.remove("is-open");
+		secondItems[1].classList.add("is-open");
+		await flushMutations();
+
+		expect(document.querySelector("#first-values .values_media-stage .is-active .values_media-title").textContent).toBe("First A");
+		expect(document.querySelector("#second-values .values_media-stage .is-active .values_media-title").textContent).toBe("Second B");
+	});
+
+	it("returns the same cleanup and observes state once when initialized twice for one root", async () => {
+		renderValues();
+		const mediaQuery = createMatchMedia(true);
+		vi.stubGlobal("matchMedia", vi.fn((query) =>
+			query === "(min-width: 768px)" ? mediaQuery : { matches: false },
+		));
+		const gsap = createGsap();
+		const firstCleanup = initValues(document, gsap);
+		const secondCleanup = initValues(document, gsap);
+		cleanup = firstCleanup;
+		const [first, second] = document.querySelectorAll(".value-item");
+
+		first.classList.remove("is-open");
+		second.classList.add("is-open");
+		await flushMutations();
+
+		expect(secondCleanup).toBe(firstCleanup);
+		expect(document.querySelectorAll('[data-values-generated="media"]')).toHaveLength(3);
+		expect(gsap.to).toHaveBeenCalledTimes(2);
+	});
+
+	it("destroys tweens and generated nodes when a Values component is removed", async () => {
+		renderValues();
+		const mediaQuery = createMatchMedia(true);
+		vi.stubGlobal("matchMedia", vi.fn((query) =>
+			query === "(min-width: 768px)" ? mediaQuery : { matches: false },
+		));
+		const gsap = createGsap();
+		cleanup = initValues(document, gsap);
+		const component = document.querySelector(".values");
+		gsap.killTweensOf.mockClear();
+
+		component.remove();
+		await flushMutations();
+
+		expect(gsap.killTweensOf).toHaveBeenCalledTimes(1);
+		expect(component.querySelectorAll("[data-values-generated]")).toHaveLength(0);
+		expect(mediaQuery.listenerCount()).toBe(0);
+	});
+
+	it("fully detaches listeners and observers and ignores later changes after cleanup", async () => {
+		renderValues();
+		const mediaQuery = createMatchMedia(true);
+		vi.stubGlobal("matchMedia", vi.fn((query) =>
+			query === "(min-width: 768px)" ? mediaQuery : { matches: false },
+		));
+		const gsap = createGsap();
+		cleanup = initValues(document, gsap);
+		const component = document.querySelector(".values");
+		const items = component.querySelector(".values_items");
+
+		cleanup();
+		cleanup();
+		cleanup = null;
+		expect(mediaQuery.listenerCount()).toBe(0);
+		expect(component.querySelectorAll("[data-values-generated]")).toHaveLength(0);
+
+		items.firstElementChild.classList.remove("is-open");
+		items.insertAdjacentHTML("beforeend", valueItem("Ignored"));
+		component.insertAdjacentHTML("afterend", valuesMarkup({ titles: ["Also ignored"] }));
+		mediaQuery.setMatches(false);
+		mediaQuery.setMatches(true);
+		await flushMutations();
+
+		expect(document.querySelectorAll("[data-values-generated]")).toHaveLength(0);
+		expect(gsap.to).not.toHaveBeenCalled();
+	});
+
+	it("warns and returns a no-op cleanup when GSAP is missing", () => {
+		renderValues();
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+		cleanup = initValues(document, undefined);
+
+		expect(warn).toHaveBeenCalledOnce();
+		expect(warn).toHaveBeenCalledWith("[values] GSAP was not found. Load GSAP before initializing Values.");
+		expect(() => {
+			cleanup();
+			cleanup();
+		}).not.toThrow();
+	});
+
+	it("warns once for a missing stage while keeping mobile indices working", async () => {
+		renderValues();
+		document.querySelector(".values_media-stage").remove();
+		const mediaQuery = createMatchMedia(false);
+		vi.stubGlobal("matchMedia", vi.fn(() => mediaQuery));
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		cleanup = initValues(document, createGsap());
+
+		document.querySelector(".values_items").insertAdjacentHTML("beforeend", valueItem("Curiosity"));
+		await flushMutations();
+
+		expect(warn).toHaveBeenCalledOnce();
+		expect(warn.mock.calls[0][0]).toContain(".values_media-stage");
+		expect([...document.querySelectorAll(".values_media-index")].map((node) => node.textContent)).toEqual([
+			"01 / 04",
+			"02 / 04",
+			"03 / 04",
+			"04 / 04",
+		]);
+	});
+
+	it.each([
+		[".values_media", (item) => item.querySelector(".values_media").remove(), 2],
+		[".values_media-content-inner", (item) => item.querySelector(".values_media-content-inner").remove(), 3],
+	])("warns once for a missing %s while valid items keep working", async (_selector, breakItem, expectedClones) => {
+		renderValues();
+		const malformedItem = document.querySelectorAll(".value-item")[1];
+		breakItem(malformedItem);
+		const mediaQuery = createMatchMedia(true);
+		vi.stubGlobal("matchMedia", vi.fn((query) =>
+			query === "(min-width: 768px)" ? mediaQuery : { matches: false },
+		));
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		cleanup = initValues(document, createGsap());
+
+		document.querySelector(".values_items").append(document.querySelector(".value-item"));
+		await flushMutations();
+
+		expect(warn).toHaveBeenCalledOnce();
+		expect(document.querySelectorAll(".value-item .values_media-index")).toHaveLength(2);
+		expect(document.querySelectorAll('[data-values-generated="media"]')).toHaveLength(expectedClones);
+	});
+
+	it("does not initialize a component appended and removed before the root observer flushes", async () => {
+		const mediaQuery = createMatchMedia(true);
+		vi.stubGlobal("matchMedia", vi.fn((query) =>
+			query === "(min-width: 768px)" ? mediaQuery : { matches: false },
+		));
+		cleanup = initValues(document, createGsap());
+		const template = document.createElement("template");
+		template.innerHTML = valuesMarkup();
+		const component = template.content.firstElementChild;
+
+		document.body.append(component);
+		component.remove();
+		await flushMutations();
+
+		expect(component.querySelectorAll("[data-values-generated]")).toHaveLength(0);
+		expect(mediaQuery.listenerCount()).toBe(0);
 	});
 });
