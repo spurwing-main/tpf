@@ -7,6 +7,7 @@ function mediaCard(title) {
 			<img src="/${title.toLowerCase().replaceAll(" ", "-")}.jpg" alt="${title}">
 			<div class="values_media-content">
 				<div class="values_media-content-inner">
+					<div class="values_media-index"></div>
 					<div class="values_media-title">${title}</div>
 				</div>
 			</div>
@@ -24,14 +25,18 @@ function valueItem(title, isOpen = false) {
 	`;
 }
 
-function valuesMarkup({ titles = ["Integrity", "Human first", "Quality"], id = "" } = {}) {
+function valuesMarkup({
+	titles = ["Integrity", "Human first", "Quality"],
+	id = "",
+	stagePlaceholder = false,
+} = {}) {
 	return `
 		<section class="values"${id ? ` id="${id}"` : ""}>
 			<div class="values_content">
 				<div class="values_items" data-accordion="component">
 					${titles.map((title, index) => valueItem(title, index === 0)).join("")}
 				</div>
-				<div class="values_media-stage"></div>
+				<div class="values_media-stage">${stagePlaceholder ? `${mediaCard("Placeholder").replace('class="values_media"', 'class="values_media is-placeholder"')}` : ""}</div>
 			</div>
 		</section>
 	`;
@@ -113,39 +118,51 @@ describe("initValues", () => {
 
 	afterEach(() => cleanup?.());
 
-	it("generates padded position and total indices for item-owned media", () => {
+	it("updates padded position and total indices for item-owned media", () => {
 		renderValues();
 		const mediaQuery = createMatchMedia(false);
-		vi.stubGlobal("matchMedia", vi.fn(() => mediaQuery));
+		vi.stubGlobal(
+			"matchMedia",
+			vi.fn(() => mediaQuery),
+		);
 
 		cleanup = initValues(document, createGsap());
 
-		expect([...document.querySelectorAll(".value-item .values_media-index")].map((node) => node.textContent)).toEqual([
-			"01 / 03",
-			"02 / 03",
-			"03 / 03",
-		]);
+		expect(
+			[...document.querySelectorAll(".value-item .values_media-index")].map(
+				(node) => node.textContent,
+			),
+		).toEqual(["01 / 03", "02 / 03", "03 / 03"]);
 		expect(document.querySelector(".values_media-stage").childElementCount).toBe(0);
 	});
 
-	it("removes only module-generated index nodes during cleanup", () => {
+	it("keeps authored index nodes during cleanup", () => {
 		renderValues();
-		vi.stubGlobal("matchMedia", vi.fn(() => createMatchMedia(false)));
+		vi.stubGlobal(
+			"matchMedia",
+			vi.fn(() => createMatchMedia(false)),
+		);
 		cleanup = initValues(document, createGsap());
 
 		cleanup();
 		cleanup = null;
 
-		expect(document.querySelectorAll('[data-values-generated="index"]')).toHaveLength(0);
+		expect(document.querySelectorAll(".value-item .values_media-index")).toHaveLength(3);
+		expect(
+			[...document.querySelectorAll(".value-item .values_media-index")].map(
+				(node) => node.textContent,
+			),
+		).toEqual(["01 / 03", "02 / 03", "03 / 03"]);
 		expect(document.querySelectorAll(".values_media")).toHaveLength(3);
 	});
 
 	it("builds every desktop clone and initially shows the open item's media", () => {
 		renderValues();
 		const mediaQuery = createMatchMedia(true);
-		vi.stubGlobal("matchMedia", vi.fn((query) =>
-			query === "(min-width: 768px)" ? mediaQuery : { matches: false },
-		));
+		vi.stubGlobal(
+			"matchMedia",
+			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
+		);
 		cleanup = initValues(document, createGsap());
 
 		const clones = [...document.querySelectorAll('[data-values-generated="media"]')];
@@ -160,12 +177,30 @@ describe("initValues", () => {
 		expect(clones[1].hasAttribute("inert")).toBe(true);
 	});
 
+	it("removes authored stage placeholders before using the desktop stage", () => {
+		renderValues({ stagePlaceholder: true });
+		const mediaQuery = createMatchMedia(true);
+		vi.stubGlobal(
+			"matchMedia",
+			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
+		);
+		cleanup = initValues(document, createGsap());
+
+		const stage = document.querySelector(".values_media-stage");
+		const clones = [...document.querySelectorAll('[data-values-generated="media"]')];
+
+		expect(stage.querySelector(".values_media.is-placeholder")).toBeNull();
+		expect(clones).toHaveLength(3);
+		expect(stage.children).toHaveLength(3);
+	});
+
 	it("crossfades when another accordion item becomes open", async () => {
 		renderValues();
 		const mediaQuery = createMatchMedia(true);
-		vi.stubGlobal("matchMedia", vi.fn((query) =>
-			query === "(min-width: 768px)" ? mediaQuery : { matches: false },
-		));
+		vi.stubGlobal(
+			"matchMedia",
+			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
+		);
 		const gsap = createGsap();
 		cleanup = initValues(document, gsap);
 		const [first, second] = document.querySelectorAll(".value-item");
@@ -178,20 +213,24 @@ describe("initValues", () => {
 		expect(clones[0].classList.contains("is-active")).toBe(false);
 		expect(clones[1].classList.contains("is-active")).toBe(true);
 		expect(gsap.killTweensOf).toHaveBeenCalled();
-		expect(gsap.to).toHaveBeenCalledWith(clones[1], expect.objectContaining({
-			autoAlpha: 1,
-			duration: 0.4,
-			ease: "power2.out",
-			overwrite: "auto",
-		}));
+		expect(gsap.to).toHaveBeenCalledWith(
+			clones[1],
+			expect.objectContaining({
+				autoAlpha: 1,
+				duration: 0.4,
+				ease: "power2.out",
+				overwrite: "auto",
+			}),
+		);
 	});
 
 	it("hides stale interrupted clones during rapid item changes", async () => {
 		renderValues();
 		const mediaQuery = createMatchMedia(true);
-		vi.stubGlobal("matchMedia", vi.fn((query) =>
-			query === "(min-width: 768px)" ? mediaQuery : { matches: false },
-		));
+		vi.stubGlobal(
+			"matchMedia",
+			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
+		);
 		cleanup = initValues(document, createDeferredGsap());
 		const [first, second, third] = document.querySelectorAll(".value-item");
 
@@ -212,23 +251,30 @@ describe("initValues", () => {
 
 	it("keeps the last media selected when its accordion item closes", async () => {
 		renderValues();
-		vi.stubGlobal("matchMedia", vi.fn((query) => ({ matches: query.includes("min-width") })));
+		vi.stubGlobal(
+			"matchMedia",
+			vi.fn((query) => ({ matches: query.includes("min-width") })),
+		);
 		cleanup = initValues(document, createGsap());
 		const first = document.querySelector(".value-item");
 
 		first.classList.remove("is-open");
 		await Promise.resolve();
 
-		expect(document.querySelector('[data-values-generated="media"].is-active .values_media-title').textContent).toBe("Integrity");
+		expect(
+			document.querySelector('[data-values-generated="media"].is-active .values_media-title')
+				.textContent,
+		).toBe("Integrity");
 	});
 
 	it("uses immediate crossfades when reduced motion is preferred", async () => {
 		renderValues();
 		const desktopQuery = createMatchMedia(true);
 		const reducedMotionQuery = createMatchMedia(true);
-		vi.stubGlobal("matchMedia", vi.fn((query) =>
-			query === "(min-width: 768px)" ? desktopQuery : reducedMotionQuery,
-		));
+		vi.stubGlobal(
+			"matchMedia",
+			vi.fn((query) => (query === "(min-width: 768px)" ? desktopQuery : reducedMotionQuery)),
+		);
 		const gsap = createGsap();
 		cleanup = initValues(document, gsap);
 		const [first, second] = document.querySelectorAll(".value-item");
@@ -237,14 +283,20 @@ describe("initValues", () => {
 		second.classList.add("is-open");
 		await Promise.resolve();
 
-		expect(gsap.to).toHaveBeenCalledWith(expect.any(Element), expect.objectContaining({
-			autoAlpha: 0,
-			duration: 0,
-		}));
-		expect(gsap.to).toHaveBeenCalledWith(expect.any(Element), expect.objectContaining({
-			autoAlpha: 1,
-			duration: 0,
-		}));
+		expect(gsap.to).toHaveBeenCalledWith(
+			expect.any(Element),
+			expect.objectContaining({
+				autoAlpha: 0,
+				duration: 0,
+			}),
+		);
+		expect(gsap.to).toHaveBeenCalledWith(
+			expect.any(Element),
+			expect.objectContaining({
+				autoAlpha: 1,
+				duration: 0,
+			}),
+		);
 	});
 
 	it("keeps the outer selection when a nested Values item opens", async () => {
@@ -265,14 +317,21 @@ describe("initValues", () => {
 			</section>
 		`;
 		const mediaQuery = createMatchMedia(true);
-		vi.stubGlobal("matchMedia", vi.fn((query) =>
-			query === "(min-width: 768px)" ? mediaQuery : { matches: false },
-		));
+		vi.stubGlobal(
+			"matchMedia",
+			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
+		);
 		cleanup = initValues(document, createGsap());
 		const outerComponent = document.body.firstElementChild;
-		const outerItems = [...outerComponent.querySelector(":scope > .values_content > .values_items").children];
-		const outerStage = outerComponent.querySelector(":scope > .values_content > .values_media-stage");
-		const nestedItems = [...outerComponent.querySelector(".value-item_content .values_items").children];
+		const outerItems = [
+			...outerComponent.querySelector(":scope > .values_content > .values_items").children,
+		];
+		const outerStage = outerComponent.querySelector(
+			":scope > .values_content > .values_media-stage",
+		);
+		const nestedItems = [
+			...outerComponent.querySelector(".value-item_content .values_items").children,
+		];
 
 		outerItems[0].classList.remove("is-open");
 		outerItems[1].classList.add("is-open");
@@ -284,15 +343,43 @@ describe("initValues", () => {
 		mediaQuery.setMatches(false);
 		mediaQuery.setMatches(true);
 
-		expect(outerStage.querySelector('.is-active .values_media-title').textContent).toBe("Outer second");
+		expect(outerStage.querySelector(".is-active .values_media-title").textContent).toBe(
+			"Outer second",
+		);
+	});
+
+	it("supports media nested within an item wrapper", () => {
+		renderValues();
+		const first = document.querySelector(".value-item");
+		const content = first.querySelector(".value-item_content");
+		const media = first.querySelector(".values_media");
+		const wrapper = document.createElement("div");
+
+		wrapper.className = "value-item_media-shell";
+		content.append(wrapper);
+		wrapper.append(media);
+
+		vi.stubGlobal(
+			"matchMedia",
+			vi.fn((query) => ({ matches: query.includes("min-width") })),
+		);
+		cleanup = initValues(document, createGsap());
+
+		expect(first.querySelector(".value-item_content .values_media")).toBe(media);
+		expect(first.querySelector(".values_media-index")?.textContent).toBe("01 / 03");
+		expect(
+			document.querySelector('[data-values-generated="media"].is-active .values_media-title')
+				.textContent,
+		).toBe("Integrity");
 	});
 
 	it("builds desktop clones for the currently open mobile item when the query starts matching", async () => {
 		renderValues();
 		const mediaQuery = createMatchMedia(false);
-		vi.stubGlobal("matchMedia", vi.fn((query) =>
-			query === "(min-width: 768px)" ? mediaQuery : { matches: false },
-		));
+		vi.stubGlobal(
+			"matchMedia",
+			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
+		);
 		cleanup = initValues(document, createGsap());
 		const [first, second] = document.querySelectorAll(".value-item");
 
@@ -303,15 +390,19 @@ describe("initValues", () => {
 
 		const clones = [...document.querySelectorAll('[data-values-generated="media"]')];
 		expect(clones).toHaveLength(3);
-		expect(document.querySelector('[data-values-generated="media"].is-active .values_media-title').textContent).toBe("Human first");
+		expect(
+			document.querySelector('[data-values-generated="media"].is-active .values_media-title')
+				.textContent,
+		).toBe("Human first");
 	});
 
 	it("removes desktop clones without removing original media when the query stops matching", () => {
 		renderValues();
 		const mediaQuery = createMatchMedia(true);
-		vi.stubGlobal("matchMedia", vi.fn((query) =>
-			query === "(min-width: 768px)" ? mediaQuery : { matches: false },
-		));
+		vi.stubGlobal(
+			"matchMedia",
+			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
+		);
 		cleanup = initValues(document, createGsap());
 
 		mediaQuery.setMatches(false);
@@ -323,28 +414,34 @@ describe("initValues", () => {
 	it("reindexes a newly appended direct item without selecting it", async () => {
 		renderValues();
 		const mediaQuery = createMatchMedia(true);
-		vi.stubGlobal("matchMedia", vi.fn((query) =>
-			query === "(min-width: 768px)" ? mediaQuery : { matches: false },
-		));
+		vi.stubGlobal(
+			"matchMedia",
+			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
+		);
 		cleanup = initValues(document, createGsap());
 		const items = document.querySelector(".values_items");
 		items.insertAdjacentHTML("beforeend", valueItem("Curiosity"));
 
 		await flushMutations();
 
-		expect([...document.querySelectorAll(".value-item .values_media-index")].map((node) => node.textContent)).toEqual([
-			"01 / 04",
-			"02 / 04",
-			"03 / 04",
-			"04 / 04",
-		]);
+		expect(
+			[...document.querySelectorAll(".value-item .values_media-index")].map(
+				(node) => node.textContent,
+			),
+		).toEqual(["01 / 04", "02 / 04", "03 / 04", "04 / 04"]);
 		expect(document.querySelectorAll('[data-values-generated="media"]')).toHaveLength(4);
-		expect(document.querySelector('[data-values-generated="media"].is-active .values_media-title').textContent).toBe("Integrity");
+		expect(
+			document.querySelector('[data-values-generated="media"].is-active .values_media-title')
+				.textContent,
+		).toBe("Integrity");
 	});
 
 	it("recalculates positions and totals in DOM order after removal and reordering", async () => {
 		renderValues();
-		vi.stubGlobal("matchMedia", vi.fn(() => createMatchMedia(false)));
+		vi.stubGlobal(
+			"matchMedia",
+			vi.fn(() => createMatchMedia(false)),
+		);
 		cleanup = initValues(document, createGsap());
 		const items = document.querySelector(".values_items");
 		const [first, second, third] = items.children;
@@ -353,10 +450,12 @@ describe("initValues", () => {
 		items.prepend(third);
 		await flushMutations();
 
-		expect([...items.children].map((item) => ({
-			title: item.querySelector(".value-item_header").textContent,
-			index: item.querySelector(".values_media-index").textContent,
-		}))).toEqual([
+		expect(
+			[...items.children].map((item) => ({
+				title: item.querySelector(".value-item_header").textContent,
+				index: item.querySelector(".values_media-index").textContent,
+			})),
+		).toEqual([
 			{ title: "Quality", index: "01 / 02" },
 			{ title: "Integrity", index: "02 / 02" },
 		]);
@@ -369,9 +468,10 @@ describe("initValues", () => {
 			valuesMarkup({ titles: ["Second A", "Second B"], id: "second-values" }),
 		].join("");
 		const mediaQuery = createMatchMedia(true);
-		vi.stubGlobal("matchMedia", vi.fn((query) =>
-			query === "(min-width: 768px)" ? mediaQuery : { matches: false },
-		));
+		vi.stubGlobal(
+			"matchMedia",
+			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
+		);
 		cleanup = initValues(document, createGsap());
 		const secondItems = document.querySelectorAll("#second-values .value-item");
 
@@ -379,16 +479,23 @@ describe("initValues", () => {
 		secondItems[1].classList.add("is-open");
 		await flushMutations();
 
-		expect(document.querySelector("#first-values .values_media-stage .is-active .values_media-title").textContent).toBe("First A");
-		expect(document.querySelector("#second-values .values_media-stage .is-active .values_media-title").textContent).toBe("Second B");
+		expect(
+			document.querySelector("#first-values .values_media-stage .is-active .values_media-title")
+				.textContent,
+		).toBe("First A");
+		expect(
+			document.querySelector("#second-values .values_media-stage .is-active .values_media-title")
+				.textContent,
+		).toBe("Second B");
 	});
 
 	it("returns the same cleanup and observes state once when initialized twice for one root", async () => {
 		renderValues();
 		const mediaQuery = createMatchMedia(true);
-		vi.stubGlobal("matchMedia", vi.fn((query) =>
-			query === "(min-width: 768px)" ? mediaQuery : { matches: false },
-		));
+		vi.stubGlobal(
+			"matchMedia",
+			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
+		);
 		const gsap = createGsap();
 		const firstCleanup = initValues(document, gsap);
 		const secondCleanup = initValues(document, gsap);
@@ -407,9 +514,10 @@ describe("initValues", () => {
 	it("destroys tweens and generated nodes when a Values component is removed", async () => {
 		renderValues();
 		const mediaQuery = createMatchMedia(true);
-		vi.stubGlobal("matchMedia", vi.fn((query) =>
-			query === "(min-width: 768px)" ? mediaQuery : { matches: false },
-		));
+		vi.stubGlobal(
+			"matchMedia",
+			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
+		);
 		const gsap = createGsap();
 		cleanup = initValues(document, gsap);
 		const component = document.querySelector(".values");
@@ -426,9 +534,10 @@ describe("initValues", () => {
 	it("fully detaches listeners and observers and ignores later changes after cleanup", async () => {
 		renderValues();
 		const mediaQuery = createMatchMedia(true);
-		vi.stubGlobal("matchMedia", vi.fn((query) =>
-			query === "(min-width: 768px)" ? mediaQuery : { matches: false },
-		));
+		vi.stubGlobal(
+			"matchMedia",
+			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
+		);
 		const gsap = createGsap();
 		cleanup = initValues(document, gsap);
 		const component = document.querySelector(".values");
@@ -458,7 +567,9 @@ describe("initValues", () => {
 		cleanup = initValues(document, undefined);
 
 		expect(warn).toHaveBeenCalledOnce();
-		expect(warn).toHaveBeenCalledWith("[values] GSAP was not found. Load GSAP before initializing Values.");
+		expect(warn).toHaveBeenCalledWith(
+			"[values] GSAP was not found. Load GSAP before initializing Values.",
+		);
 		expect(() => {
 			cleanup();
 			cleanup();
@@ -469,7 +580,10 @@ describe("initValues", () => {
 		renderValues();
 		document.querySelector(".values_media-stage").remove();
 		const mediaQuery = createMatchMedia(false);
-		vi.stubGlobal("matchMedia", vi.fn(() => mediaQuery));
+		vi.stubGlobal(
+			"matchMedia",
+			vi.fn(() => mediaQuery),
+		);
 		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 		cleanup = initValues(document, createGsap());
 
@@ -478,25 +592,20 @@ describe("initValues", () => {
 
 		expect(warn).toHaveBeenCalledOnce();
 		expect(warn.mock.calls[0][0]).toContain(".values_media-stage");
-		expect([...document.querySelectorAll(".values_media-index")].map((node) => node.textContent)).toEqual([
-			"01 / 04",
-			"02 / 04",
-			"03 / 04",
-			"04 / 04",
-		]);
+		expect(
+			[...document.querySelectorAll(".values_media-index")].map((node) => node.textContent),
+		).toEqual(["01 / 04", "02 / 04", "03 / 04", "04 / 04"]);
 	});
 
-	it.each([
-		[".values_media", (item) => item.querySelector(".values_media").remove(), 2],
-		[".values_media-content-inner", (item) => item.querySelector(".values_media-content-inner").remove(), 3],
-	])("warns once for a missing %s while valid items keep working", async (_selector, breakItem, expectedClones) => {
+	it("warns once for a missing .values_media while valid items keep working", async () => {
 		renderValues();
 		const malformedItem = document.querySelectorAll(".value-item")[1];
-		breakItem(malformedItem);
+		malformedItem.querySelector(".values_media").remove();
 		const mediaQuery = createMatchMedia(true);
-		vi.stubGlobal("matchMedia", vi.fn((query) =>
-			query === "(min-width: 768px)" ? mediaQuery : { matches: false },
-		));
+		vi.stubGlobal(
+			"matchMedia",
+			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
+		);
 		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 		cleanup = initValues(document, createGsap());
 
@@ -505,14 +614,15 @@ describe("initValues", () => {
 
 		expect(warn).toHaveBeenCalledOnce();
 		expect(document.querySelectorAll(".value-item .values_media-index")).toHaveLength(2);
-		expect(document.querySelectorAll('[data-values-generated="media"]')).toHaveLength(expectedClones);
+		expect(document.querySelectorAll('[data-values-generated="media"]')).toHaveLength(2);
 	});
 
 	it("does not initialize a component appended and removed before the root observer flushes", async () => {
 		const mediaQuery = createMatchMedia(true);
-		vi.stubGlobal("matchMedia", vi.fn((query) =>
-			query === "(min-width: 768px)" ? mediaQuery : { matches: false },
-		));
+		vi.stubGlobal(
+			"matchMedia",
+			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
+		);
 		cleanup = initValues(document, createGsap());
 		const template = document.createElement("template");
 		template.innerHTML = valuesMarkup();

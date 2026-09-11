@@ -8,7 +8,7 @@ const selectors = {
 	items: ".values_items",
 	item: ".value-item",
 	media: ".values_media",
-	mediaContent: ".values_media-content-inner",
+	mediaIndex: ".values_media-index",
 	stage: ".values_media-stage",
 };
 
@@ -17,18 +17,28 @@ const componentRecords = new WeakMap();
 const warnedElements = new WeakSet();
 
 function getMatchingTree(root, selector) {
-	const matches = [];
-	if (root.nodeType === 1 && root.matches(selector)) matches.push(root);
-	if (typeof root.querySelectorAll === "function") matches.push(...root.querySelectorAll(selector));
-	return matches;
+	return [
+		...(root.matches?.(selector) ? [root] : []),
+		...(root.querySelectorAll?.(selector) ?? []),
+	];
+}
+
+function getOwnedMatches(root, selector, ownerSelector) {
+	return [...root.querySelectorAll(selector)].filter(
+		(element) => element.closest(ownerSelector) === root,
+	);
+}
+
+function getOwnedMatch(root, selector, ownerSelector) {
+	return getOwnedMatches(root, selector, ownerSelector)[0] ?? null;
 }
 
 function getItems(itemsElement) {
-	return [...itemsElement.children].filter((child) => child.matches(selectors.item));
+	return getOwnedMatches(itemsElement, selectors.item, selectors.items);
 }
 
 function getItemMedia(item) {
-	return [...item.children].find((child) => child.matches(selectors.media)) ?? null;
+	return getOwnedMatch(item, selectors.media, selectors.item);
 }
 
 function formatIndex(position, total) {
@@ -42,14 +52,15 @@ function warnOnce(element, message) {
 	console.warn(message);
 }
 
-function removeGeneratedIndices(record) {
-	record.element.querySelectorAll('[data-values-generated="index"]').forEach((node) => {
-		if (node.closest(selectors.component) === record.element) node.remove();
-	});
+function removeStagePlaceholders(record) {
+	getOwnedMatches(
+		record.stage ?? record.element,
+		`${selectors.media}.is-placeholder`,
+		selectors.stage,
+	).forEach((node) => node.remove());
 }
 
 function syncSources(record) {
-	removeGeneratedIndices(record);
 	const items = getItems(record.itemsElement);
 	record.sources = [];
 
@@ -60,16 +71,9 @@ function syncSources(record) {
 			return;
 		}
 
-		const content = media.querySelector(selectors.mediaContent);
-		if (!content) {
-			warnOnce(item, "[values] An item needs a .values_media-content-inner element; its index was skipped.");
-		} else {
-			const indexElement = item.ownerDocument.createElement("div");
-			indexElement.className = "values_media-index";
-			indexElement.dataset.valuesGenerated = "index";
-			indexElement.textContent = formatIndex(index + 1, items.length);
-			content.append(indexElement);
-		}
+		getOwnedMatch(media, selectors.mediaIndex, selectors.media)?.replaceChildren(
+			formatIndex(index + 1, items.length),
+		);
 		record.sources.push({ item, media });
 	});
 }
@@ -110,6 +114,7 @@ function activateItem(record, item, animate = true) {
 
 function buildDesktopStack(record) {
 	if (!record.stage) return;
+	removeStagePlaceholders(record);
 	record.isDesktop = true;
 	record.clones = new Map();
 
@@ -122,9 +127,10 @@ function buildDesktopStack(record) {
 	}
 
 	const openSource = record.sources.find(({ item }) => item.classList.contains("is-open"));
-	const initialItem = record.activeItem && record.clones.has(record.activeItem)
-		? record.activeItem
-		: openSource?.item ?? record.sources[0]?.item;
+	const initialItem =
+		record.activeItem && record.clones.has(record.activeItem)
+			? record.activeItem
+			: (openSource?.item ?? record.sources[0]?.item);
 	record.activeItem = null;
 	activateItem(record, initialItem, false);
 }
@@ -145,9 +151,9 @@ function rebuildForItemsChange(record) {
 	const stillPresent = record.sources.some(({ item }) => item === previousActiveItem);
 	record.activeItem = stillPresent
 		? previousActiveItem
-		: record.sources.find(({ item }) => item.classList.contains("is-open"))?.item
-			?? record.sources[0]?.item
-			?? null;
+		: (record.sources.find(({ item }) => item.classList.contains("is-open"))?.item ??
+			record.sources[0]?.item ??
+			null);
 
 	if (record.mediaQuery?.matches) buildDesktopStack(record);
 }
@@ -156,20 +162,20 @@ function createComponentRecord(component, gsap) {
 	const existingRecord = componentRecords.get(component);
 	if (existingRecord) return existingRecord;
 
-	const itemsElement = [...component.querySelectorAll(selectors.items)].find(
-		(element) => element.closest(selectors.component) === component,
-	);
+	const itemsElement = getOwnedMatch(component, selectors.items, selectors.component);
 	if (!itemsElement) {
 		warnOnce(component, "[values] Skipped a component because it needs a .values_items element.");
 		return null;
 	}
 
-	const stage = [...component.querySelectorAll(selectors.stage)].find(
-		(element) => element.closest(selectors.component) === component,
-	) ?? null;
+	const stage = getOwnedMatch(component, selectors.stage, selectors.component);
 	if (!stage) {
-		warnOnce(component, "[values] Skipped desktop media because the component needs a .values_media-stage element.");
+		warnOnce(
+			component,
+			"[values] Skipped desktop media because the component needs a .values_media-stage element.",
+		);
 	}
+	removeStagePlaceholders({ element: component, stage });
 	const mediaQuery = globalThis.matchMedia?.(DESKTOP_QUERY);
 	const record = {
 		element: component,
@@ -194,17 +200,22 @@ function createComponentRecord(component, gsap) {
 	mediaQuery?.addEventListener?.("change", record.onMediaChange);
 	syncSources(record);
 	record.observer = new MutationObserver((mutations) => {
-		if (mutations.some((mutation) => mutation.type === "childList" && mutation.target === record.itemsElement)) {
+		if (
+			mutations.some(
+				(mutation) => mutation.type === "childList" && mutation.target === record.itemsElement,
+			)
+		) {
 			rebuildForItemsChange(record);
 		}
 
 		for (const mutation of mutations) {
 			if (
-				mutation.type === "attributes"
-				&& mutation.target.matches(selectors.item)
-				&& mutation.target.closest(selectors.component) === record.element
-				&& mutation.target.classList.contains("is-open")
-			) activateItem(record, mutation.target);
+				mutation.type === "attributes" &&
+				mutation.target.matches(selectors.item) &&
+				mutation.target.closest(selectors.component) === record.element &&
+				mutation.target.classList.contains("is-open")
+			)
+				activateItem(record, mutation.target);
 		}
 	});
 	record.observer.observe(itemsElement, {
@@ -223,7 +234,6 @@ function destroyComponentRecord(record) {
 	record.observer?.disconnect();
 	record.mediaQuery?.removeEventListener?.("change", record.onMediaChange);
 	destroyDesktopStack(record);
-	removeGeneratedIndices(record);
 	record.sources = [];
 	componentRecords.delete(record.element);
 }
