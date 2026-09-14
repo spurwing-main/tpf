@@ -1,4 +1,5 @@
 import Splide from "@splidejs/splide";
+import { AutoScroll } from "@splidejs/splide-extension-auto-scroll";
 
 const OPTIONS = {
 	type: "slide",
@@ -14,6 +15,19 @@ const OPTIONS = {
 
 function isEnabled(element, attribute) {
 	return element.getAttribute(attribute) === "true";
+}
+
+function getNumber(element, attribute, fallback) {
+	const rawValue = element.getAttribute(attribute);
+	if (rawValue === null) return fallback;
+
+	const value = Number(rawValue);
+	return Number.isFinite(value) ? value : fallback;
+}
+
+function getBoolean(element, attribute, fallback) {
+	const value = element.getAttribute(attribute);
+	return value === null ? fallback : isEnabled(element, attribute);
 }
 
 function hasRequiredMarkup(element) {
@@ -35,8 +49,18 @@ export function initSliders(root = document, SplideConstructor = Splide) {
 				arrows: isEnabled(element, "data-splide-arrows"),
 				pagination: isEnabled(element, "data-splide-pagination"),
 			};
+			const autoscroll = isEnabled(element, "data-splide-autoscroll");
 
-			return new SplideConstructor(element, options).mount();
+			if (autoscroll) {
+				options.autoScroll = {
+					speed: getNumber(element, "data-splide-autoscroll-speed", 1),
+					pauseOnHover: getBoolean(element, "data-splide-autoscroll-pause-on-hover", true),
+					pauseOnFocus: getBoolean(element, "data-splide-autoscroll-pause-on-focus", true),
+				};
+			}
+
+			const instance = new SplideConstructor(element, options);
+			return autoscroll ? instance.mount({ AutoScroll }) : instance.mount();
 		});
 
 	return () => instances.forEach((instance) => instance.destroy());

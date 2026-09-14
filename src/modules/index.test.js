@@ -1,12 +1,20 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { initAccordions } from "./accordions.js";
 import { modules } from "./index.js";
 import { initLogoRevolver } from "./logo-revolver.js";
+import { initDialogs } from "./dialogs.js";
 import { initStats } from "./stats.js";
 import { initTestimonials } from "./testimonials.js";
 import { initValues } from "./values.js";
+import { initVideos } from "./videos.js";
+
+vi.mock("plyr", () => ({ default: class PlyrDefaultDouble {} }));
 
 describe("module registry", () => {
+	it("registers the native dialog initializer", () => {
+		expect(modules).toContainEqual({ name: "dialogs", init: initDialogs });
+	});
+
 	it("registers the mobile client logo revolver", () => {
 		expect(modules).toContainEqual({ name: "logoRevolver", init: initLogoRevolver });
 	});
@@ -26,6 +34,10 @@ describe("module registry", () => {
 
 	it("registers the stats initializer with the site boot sequence", () => {
 		expect(modules).toContainEqual({ name: "stats", init: initStats });
+	});
+
+	it("registers the video initializer with the site boot sequence", () => {
+		expect(modules).toContainEqual({ name: "videos", init: initVideos });
 	});
 
 	it("registers the custom testimonial initializer after generic sliders", () => {

@@ -7,12 +7,14 @@ class SplideDouble {
 	constructor(element, options) {
 		this.element = element;
 		this.options = options;
+		this.mountArguments = [];
 		this.mounted = false;
 		this.destroyed = false;
 		SplideDouble.instances.push(this);
 	}
 
-	mount() {
+	mount(...args) {
+		this.mountArguments = args;
 		this.mounted = true;
 		this.element.dataset.sliderMounted = "";
 		return this;
@@ -85,6 +87,33 @@ describe("initSliders", () => {
 			expect.objectContaining({ type: "loop", arrows: true, pagination: true }),
 			expect.objectContaining({ type: "slide", arrows: false, pagination: false }),
 		]);
+	});
+
+	it("mounts autoscroll sliders with the extension and data-attribute options", () => {
+		document.body.innerHTML = splideMarkup(
+			'data-splide-autoscroll="true" data-splide-autoscroll-speed="2" data-splide-autoscroll-pause-on-hover="false" data-splide-autoscroll-pause-on-focus="false"',
+		);
+
+		initSliders(document, SplideDouble);
+
+		expect(SplideDouble.instances[0].options).toEqual(
+			expect.objectContaining({
+				autoScroll: { speed: 2, pauseOnHover: false, pauseOnFocus: false },
+			}),
+		);
+		expect(SplideDouble.instances[0].mountArguments).toHaveLength(1);
+	});
+
+	it("uses the default autoscroll settings when overrides are absent", () => {
+		document.body.innerHTML = splideMarkup('data-splide-autoscroll="true"');
+
+		initSliders(document, SplideDouble);
+
+		expect(SplideDouble.instances[0].options.autoScroll).toEqual({
+			speed: 1,
+			pauseOnHover: true,
+			pauseOnFocus: true,
+		});
 	});
 
 	it("skips splide elements without the required track and list markup", () => {

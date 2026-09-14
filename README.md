@@ -235,6 +235,60 @@ Keep visual values in Webflow or in an Embed. Use modules only for browser behav
 
 Use `data-*` attributes as the interface between Webflow, CSS, and JS. Do not use style class names as controls.
 
+## Video players
+
+The `videos` module uses Plyr for R2-hosted HTML5 video, YouTube, and Vimeo. Add Plyr's version-pinned stylesheet to the Webflow site `<head>`:
+
+```html
+<link rel="stylesheet" href="https://cdn.plyr.io/3.8.4/plyr.css">
+```
+
+Add one shared video dialog to the page. The existing `dialogs` module supplies backdrop clicks, Escape-key closing, scroll locking, and focus restoration. Style the dialog surface and backdrop in Webflow.
+
+```html
+<dialog id="video-dialog" data-modal data-video-dialog aria-label="Video player">
+	<div data-modal-surface>
+		<button type="button" data-video-close aria-label="Close video">Close</button>
+		<div data-video-mount></div>
+	</div>
+</dialog>
+```
+
+Each video component needs a play button and one `<template data-video-source>`. The template is inert, so its video or provider embed does not load until the user opens it. It must contain exactly one media element.
+
+For a public `.mp4` or `.webm` file on Cloudflare R2, use a native video element. Add both formats when they are available so the browser can choose the first format it supports:
+
+```html
+<section data-video-component>
+	<button type="button" data-video-open aria-haspopup="dialog" aria-controls="video-dialog" aria-label="Play: Film title">
+		Play video
+	</button>
+	<template data-video-source>
+		<video controls playsinline data-poster="https://media.example.com/poster.jpg">
+			<source src="https://media.example.com/video.mp4" type="video/mp4">
+			<source src="https://media.example.com/video.webm" type="video/webm">
+			<track kind="captions" label="English" src="https://media.example.com/captions.vtt" srclang="en" default>
+		</video>
+	</template>
+</section>
+```
+
+For YouTube, replace the element inside the template with Plyr's provider markup:
+
+```html
+<div data-plyr-provider="youtube" data-plyr-embed-id="bTqVqk7FSmY"></div>
+```
+
+For Vimeo, use the Vimeo provider and video ID:
+
+```html
+<div data-plyr-provider="vimeo" data-plyr-embed-id="76979871"></div>
+```
+
+The embed ID can also be the full YouTube or Vimeo video URL. A play-button click clones the selected template into the shared dialog and starts playback. Closing through the close button, backdrop, or Escape key stops and destroys the player, so the next open starts from the beginning.
+
+Customize the controls in Webflow with Plyr CSS variables, such as `--plyr-color-main`. Give `[data-video-dialog]` a large responsive width, style `dialog::backdrop` for the lightbox overlay, and make `[data-video-mount]` a `16 / 9` aspect-ratio container. If captions are served from another domain, add `crossorigin` to the `<video>` element and allow the Webflow domain in the R2 CORS policy.
+
 ## Commands
 
 | Command              | Result                                              |
