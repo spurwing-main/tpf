@@ -1,15 +1,17 @@
 const DESKTOP_QUERY = "(min-width: 768px)";
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+const STATE_CHANGE_EVENT = "panel-stack:statechange";
 const DURATION = 0.4;
 const EASE = "power2.out";
 
 const selectors = {
-	component: ".values",
-	items: ".values_items",
-	item: ".value-item",
-	media: ".values_media",
-	mediaIndex: ".values_media-index",
-	stage: ".values_media-stage",
+	component: "[data-panel-stack]",
+	list: "[data-panel-stack-list]",
+	item: "[data-panel-stack-item]",
+	source: "[data-panel-stack-source]",
+	index: "[data-panel-stack-index]",
+	stage: "[data-panel-stack-stage]",
+	placeholder: "[data-panel-stack-placeholder]",
 };
 
 const initializedRoots = new WeakMap();
@@ -33,12 +35,12 @@ function getOwnedMatch(root, selector, ownerSelector) {
 	return getOwnedMatches(root, selector, ownerSelector)[0] ?? null;
 }
 
-function getItems(itemsElement) {
-	return getOwnedMatches(itemsElement, selectors.item, selectors.items);
+function getItems(record) {
+	return getOwnedMatches(record.list, selectors.item, selectors.list);
 }
 
-function getItemMedia(item) {
-	return getOwnedMatch(item, selectors.media, selectors.item);
+function getItemSource(item) {
+	return getOwnedMatch(item, selectors.source, selectors.item);
 }
 
 function formatIndex(position, total) {
@@ -53,28 +55,31 @@ function warnOnce(element, message) {
 }
 
 function removeStagePlaceholders(record) {
-	getOwnedMatches(
-		record.stage ?? record.element,
-		`${selectors.media}.is-placeholder`,
-		selectors.stage,
-	).forEach((node) => node.remove());
+	getOwnedMatches(record.stage ?? record.element, selectors.placeholder, selectors.stage).forEach(
+		(node) => node.remove(),
+	);
 }
 
 function syncSources(record) {
-	const items = getItems(record.itemsElement);
-	record.sources = [];
+	const sources = [];
 
-	items.forEach((item, index) => {
-		const media = getItemMedia(item);
-		if (!media) {
-			warnOnce(item, "[values] Skipped an item because it needs a .values_media element.");
+	getItems(record).forEach((item) => {
+		const source = getItemSource(item);
+		if (!source) {
+			warnOnce(
+				item,
+				"[panel-stack] Skipped an item because it needs a [data-panel-stack-source] element.",
+			);
 			return;
 		}
+		sources.push({ item, source });
+	});
 
-		getOwnedMatch(media, selectors.mediaIndex, selectors.media)?.replaceChildren(
-			formatIndex(index + 1, items.length),
+	record.sources = sources;
+	sources.forEach(({ source }, index) => {
+		getOwnedMatch(source, selectors.index, selectors.source)?.replaceChildren(
+			formatIndex(index + 1, sources.length),
 		);
-		record.sources.push({ item, media });
 	});
 }
 
@@ -84,18 +89,52 @@ function setCloneState(record, clone, isActive) {
 	clone.toggleAttribute("inert", !isActive);
 }
 
-function activateItem(record, item, animate = true) {
+function getActiveSource(record) {
+	if (record.isDesktop) return record.activeClone;
+	return record.sources.find(({ item }) => item === record.activeItem)?.source ?? null;
+}
+
+function dispatchStateChange(record, previousSource = null) {
+	const view = record.element.ownerDocument?.defaultView ?? globalThis;
+	const CustomEventConstructor = view.CustomEvent ?? globalThis.CustomEvent;
+	if (!CustomEventConstructor) return;
+
+	const sources = record.isDesktop
+		? [...record.clones.values()]
+		: record.sources.map(({ source }) => source);
+	record.element.dispatchEvent(
+		new CustomEventConstructor(STATE_CHANGE_EVENT, {
+			bubbles: true,
+			detail: {
+				mode: record.isDesktop ? "desktop" : "mobile",
+				sources,
+				activeSource: getActiveSource(record),
+				previousSource,
+			},
+		}),
+	);
+}
+
+function activateItem(record, item, animate = true, previousSourceOverride) {
 	if (!item || item === record.activeItem) return;
+	const previousSource = previousSourceOverride ?? getActiveSource(record);
 	record.activeItem = item;
-	if (!record.isDesktop) return;
+	if (!record.isDesktop) {
+		dispatchStateChange(record, previousSource);
+		return;
+	}
 
 	const nextClone = record.clones.get(item);
-	if (!nextClone) return;
+	if (!nextClone) {
+		dispatchStateChange(record, previousSource);
+		return;
+	}
 	const previousClone = record.activeClone;
 	record.gsap.killTweensOf([...record.clones.values()]);
 
 	for (const clone of record.clones.values()) setCloneState(record, clone, clone === nextClone);
 	record.activeClone = nextClone;
+	dispatchStateChange(record, previousSource);
 
 	const duration = record.view.matchMedia?.(REDUCED_MOTION_QUERY)?.matches ? 0 : DURATION;
 	if (!animate || !previousClone || previousClone === nextClone) {
@@ -112,17 +151,20 @@ function activateItem(record, item, animate = true) {
 	record.gsap.to(nextClone, { autoAlpha: 1, duration, ease: EASE, overwrite: "auto" });
 }
 
-function buildDesktopStack(record) {
-	if (!record.stage) return;
+function buildDesktopStack(record, previousSource = null) {
+	if (!record.stage) {
+		dispatchStateChange(record, previousSource);
+		return;
+	}
 	removeStagePlaceholders(record);
 	record.isDesktop = true;
 	record.clones = new Map();
 
-	for (const source of record.sources) {
-		const clone = source.media.cloneNode(true);
-		clone.dataset.valuesGenerated = "media";
+	for (const { item, source } of record.sources) {
+		const clone = source.cloneNode(true);
+		clone.dataset.panelStackGenerated = "source";
 		record.stage.append(clone);
-		record.clones.set(source.item, clone);
+		record.clones.set(item, clone);
 		setCloneState(record, clone, false);
 	}
 
@@ -130,9 +172,10 @@ function buildDesktopStack(record) {
 	const initialItem =
 		record.activeItem && record.clones.has(record.activeItem)
 			? record.activeItem
-			: (openSource?.item ?? record.sources[0]?.item);
+		: (openSource?.item ?? record.sources[0]?.item);
 	record.activeItem = null;
-	activateItem(record, initialItem, false);
+	if (initialItem) activateItem(record, initialItem, false, previousSource);
+	else dispatchStateChange(record, previousSource);
 }
 
 function destroyDesktopStack(record) {
@@ -144,6 +187,7 @@ function destroyDesktopStack(record) {
 }
 
 function rebuildForItemsChange(record) {
+	const previousSource = getActiveSource(record);
 	const previousActiveItem = record.activeItem;
 	if (record.isDesktop) destroyDesktopStack(record);
 	syncSources(record);
@@ -155,16 +199,20 @@ function rebuildForItemsChange(record) {
 			record.sources[0]?.item ??
 			null);
 
-	if (record.mediaQuery?.matches) buildDesktopStack(record);
+	if (record.mediaQuery?.matches) buildDesktopStack(record, previousSource);
+	else dispatchStateChange(record, previousSource);
 }
 
 function createComponentRecord(component, gsap) {
 	const existingRecord = componentRecords.get(component);
 	if (existingRecord) return existingRecord;
 
-	const itemsElement = getOwnedMatch(component, selectors.items, selectors.component);
-	if (!itemsElement) {
-		warnOnce(component, "[values] Skipped a component because it needs a .values_items element.");
+	const list = getOwnedMatch(component, selectors.list, selectors.component);
+	if (!list) {
+		warnOnce(
+			component,
+			"[panel-stack] Skipped a component because it needs a [data-panel-stack-list] element.",
+		);
 		return null;
 	}
 
@@ -172,14 +220,15 @@ function createComponentRecord(component, gsap) {
 	if (!stage) {
 		warnOnce(
 			component,
-			"[values] Skipped desktop media because the component needs a .values_media-stage element.",
+			"[panel-stack] Skipped desktop stacking because the component needs a [data-panel-stack-stage] element.",
 		);
 	}
 	removeStagePlaceholders({ element: component, stage });
+
 	const mediaQuery = globalThis.matchMedia?.(DESKTOP_QUERY);
 	const record = {
 		element: component,
-		itemsElement,
+		list,
 		stage,
 		sources: [],
 		mediaQuery,
@@ -194,16 +243,18 @@ function createComponentRecord(component, gsap) {
 	};
 
 	record.onMediaChange = (event) => {
-		if (event.matches) buildDesktopStack(record);
-		else destroyDesktopStack(record);
+		const previousSource = getActiveSource(record);
+		if (event.matches) buildDesktopStack(record, previousSource);
+		else {
+			destroyDesktopStack(record);
+			dispatchStateChange(record, previousSource);
+		}
 	};
 	mediaQuery?.addEventListener?.("change", record.onMediaChange);
 	syncSources(record);
 	record.observer = new MutationObserver((mutations) => {
 		if (
-			mutations.some(
-				(mutation) => mutation.type === "childList" && mutation.target === record.itemsElement,
-			)
+			mutations.some((mutation) => mutation.type === "childList" && mutation.target === record.list)
 		) {
 			rebuildForItemsChange(record);
 		}
@@ -218,13 +269,19 @@ function createComponentRecord(component, gsap) {
 				activateItem(record, mutation.target);
 		}
 	});
-	record.observer.observe(itemsElement, {
+	record.observer.observe(list, {
 		attributes: true,
 		attributeFilter: ["class"],
 		childList: true,
 		subtree: true,
 	});
+	const initialItem =
+		record.sources.find(({ item }) => item.classList.contains("is-open"))?.item ??
+		record.sources[0]?.item ??
+		null;
+	record.activeItem = initialItem;
 	if (mediaQuery?.matches) buildDesktopStack(record);
+	else dispatchStateChange(record);
 	componentRecords.set(component, record);
 	return record;
 }
@@ -238,12 +295,12 @@ function destroyComponentRecord(record) {
 	componentRecords.delete(record.element);
 }
 
-export function initValues(root = document, gsap = globalThis.gsap) {
+export function initPanelStack(root = document, gsap = globalThis.gsap) {
 	const existingCleanup = initializedRoots.get(root);
 	if (existingCleanup) return existingCleanup;
 
 	if (!gsap?.set || !gsap?.to || !gsap?.killTweensOf) {
-		console.warn("[values] GSAP was not found. Load GSAP before initializing Values.");
+		console.warn("[panel-stack] GSAP was not found. Load GSAP before initializing panel stacks.");
 		return () => {};
 	}
 
@@ -279,6 +336,7 @@ export function initValues(root = document, gsap = globalThis.gsap) {
 		}
 	});
 	rootObserver.observe(root, { childList: true, subtree: true });
+
 	let isCleanedUp = false;
 	const cleanup = () => {
 		if (isCleanedUp) return;

@@ -235,6 +235,87 @@ Keep visual values in Webflow or in an Embed. Use modules only for browser behav
 
 Use `data-*` attributes as the interface between Webflow, CSS, and JS. Do not use style class names as controls.
 
+## Panel stacks
+
+The `panelStack` module supports item-driven components such as Values and Services. Keep styling classes component-specific, and add these shared attributes to the markup:
+
+```html
+<section data-panel-stack>
+	<div data-panel-stack-list data-accordion="component">
+		<div data-panel-stack-item data-accordion="item" class="is-open">
+			<button data-accordion="trigger">Item title</button>
+			<div data-accordion="content">
+				<div data-panel-stack-source>
+					<span data-panel-stack-index></span>
+					Panel content
+				</div>
+			</div>
+		</div>
+	</div>
+	<div data-panel-stack-stage></div>
+</section>
+```
+
+At desktop widths, sources are cloned into the shared stage and crossfaded as the open item changes. On smaller screens, the original sources remain in their accordion content. `data-panel-stack-index` is optional and renders padded position/total text such as `01 / 03`.
+
+### Inline panel-stack videos
+
+Add an inline video inside a panel-stack source when that panel should play a short clip in place. The template is cloned into its mount during component setup, so every video on the currently rendered surface is eagerly initialized before the user changes panels:
+
+```html
+<div data-panel-stack-source>
+	<div data-video-inline>
+		<template
+			data-video-source
+			data-video-autoplay="true"
+			data-video-loop="true"
+			data-video-muted="true"
+		>
+			<video playsinline preload="auto">
+				<source src="https://media.example.com/clip.mp4" type="video/mp4">
+			</video>
+		</template>
+		<div data-video-mount></div>
+	</div>
+</div>
+```
+
+`data-video-autoplay`, `data-video-loop`, and `data-video-muted` accept the explicit string values `"true"` and `"false"`; omitted values default to `false`. Autoplay is requested only when the source becomes active, and is suppressed when `prefers-reduced-motion: reduce` matches. Loop and muted are applied to native video and to the corresponding Plyr options. The active player starts at its current position; an inactive player is stopped and reset to `0`.
+
+The template may contain the same native `<video>`, YouTube, or Vimeo markup described in the Video players section. Add `data-video-inline` to distinguish this in-place lifecycle from the shared dialog flow. Desktop clones and authored mobile sources are reconciled as separate render surfaces, so only the current surface owns Plyr instances. Native files can be preloaded by the browser; YouTube and Vimeo can warm their players, but their iframe buffering remains provider-controlled.
+
+## FAQ schema
+
+Add `data-faq-schema` to each FAQ list that should produce an FAQPage JSON-LD block. Mark each item, question, and answer with the corresponding attributes:
+
+```html
+<section data-faq-schema>
+	<article data-faq-item>
+		<h2 data-faq-question>What is included?</h2>
+		<div data-faq-answer>The complete service is included.</div>
+	</article>
+</section>
+```
+
+The module reads the visible text once when the page initializes and appends a generated `application/ld+json` script to the container. It skips items whose question or answer is missing or empty.
+
+## WhatsApp buttons
+
+Add `data-whatsapp` to any on-page button that should open WhatsApp. Set the destination number and prefilled message with data attributes:
+
+```html
+<button
+	type="button"
+	data-whatsapp
+	data-whatsapp-number="447398469961"
+	data-whatsapp-message="Hello, I’d like to learn more."
+>
+	WhatsApp us
+</button>
+```
+
+The number must contain only international digits, including the country code. Do not include a plus sign, spaces, or punctuation. A leading `00` dialing prefix is accepted and removed before the WhatsApp URL is built. A click opens the encoded WhatsApp chat URL in a new tab with `noopener`. Missing or invalid attributes are reported in the console and do not open a link.
+
 ## Video players
 
 The `videos` module uses Plyr for R2-hosted HTML5 video, YouTube, and Vimeo. Add Plyr's version-pinned stylesheet to the Webflow site `<head>`:

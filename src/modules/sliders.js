@@ -1,4 +1,7 @@
-import Splide from "@splidejs/splide";
+import Splide, {
+	CLASS_INITIALIZED,
+	STATUS_CLASSES,
+} from "@splidejs/splide";
 import { AutoScroll } from "@splidejs/splide-extension-auto-scroll";
 
 const OPTIONS = {
@@ -12,6 +15,7 @@ const OPTIONS = {
 	trimSpace: true,
 	mediaQuery: "max",
 };
+const MOBILE_QUERY = "(max-width: 767px)";
 
 function isEnabled(element, attribute) {
 	return element.getAttribute(attribute) === "true";
@@ -30,38 +34,112 @@ function getBoolean(element, attribute, fallback) {
 	return value === null ? fallback : isEnabled(element, attribute);
 }
 
-function hasRequiredMarkup(element) {
+function getSlideList(element) {
 	const track = element.querySelector(".splide__track");
-	return Boolean(
-		track && [...track.children].some((child) => child.classList.contains("splide__list")),
-	);
+	return [...(track?.children ?? [])].find((child) => child.classList.contains("splide__list"));
+}
+
+function getSlideCount(element) {
+	const list = getSlideList(element);
+	return [...(list?.children ?? [])].filter((child) => child.classList.contains("splide__slide"))
+		.length;
+}
+
+function getSlideMinimum(element) {
+	const rawValue = element.getAttribute("data-splide-slide-min");
+	if (rawValue === null || rawValue.trim() === "") return null;
+
+	const value = Number(rawValue);
+	return Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function hasRequiredMarkup(element) {
+	return Boolean(getSlideList(element));
+}
+
+function createOptions(element) {
+	const options = {
+		...OPTIONS,
+		type: isEnabled(element, "data-splide-loop") ? "loop" : "slide",
+		arrows: isEnabled(element, "data-splide-arrows"),
+		pagination: isEnabled(element, "data-splide-pagination"),
+	};
+	const autoscroll = isEnabled(element, "data-splide-autoscroll");
+
+	if (autoscroll) {
+		options.autoScroll = {
+			speed: getNumber(element, "data-splide-autoscroll-speed", 1),
+			pauseOnHover: getBoolean(element, "data-splide-autoscroll-pause-on-hover", true),
+			pauseOnFocus: getBoolean(element, "data-splide-autoscroll-pause-on-focus", true),
+		};
+	}
+
+	return { options, autoscroll };
+}
+
+function destroy(record) {
+	if (record.instance) {
+		record.instance.destroy(true);
+		record.instance = null;
+	}
+
+	record.element.classList.remove(CLASS_INITIALIZED, ...STATUS_CLASSES);
+}
+
+function mount(record) {
+	if (record.instance) return;
+
+	const instance = new record.SplideConstructor(record.element, record.options);
+	record.instance = record.autoscroll ? instance.mount({ AutoScroll }) : instance.mount();
+}
+
+function reconcile(record, isMobile) {
+	const shouldMount = record.mobileOnly
+		? isMobile
+		: record.minimum === null || isMobile || getSlideCount(record.element) >= record.minimum;
+
+	if (shouldMount) {
+		mount(record);
+		return;
+	}
+
+	destroy(record);
 }
 
 export function initSliders(root = document, SplideConstructor = Splide) {
-	const instances = [
+	const records = [
 		...root.querySelectorAll(".splide:not([data-splide-custom]):not([data-testimonials])"),
 	] // exclude custom component splides
 		.filter(hasRequiredMarkup)
 		.map((element) => {
-			const options = {
-				...OPTIONS,
-				type: isEnabled(element, "data-splide-loop") ? "loop" : "slide",
-				arrows: isEnabled(element, "data-splide-arrows"),
-				pagination: isEnabled(element, "data-splide-pagination"),
+			const { options, autoscroll } = createOptions(element);
+			const minimum = getSlideMinimum(element);
+			const mobileOnly = isEnabled(element, "data-splide-mobile-only");
+			const needsMediaQuery = mobileOnly || minimum !== null;
+
+			const mediaQuery = needsMediaQuery ? globalThis.matchMedia?.(MOBILE_QUERY) : null;
+			const record = {
+				element,
+				minimum,
+				mobileOnly,
+				options,
+				autoscroll,
+				SplideConstructor,
+				mediaQuery,
+				instance: null,
+				onMediaChange: null,
 			};
-			const autoscroll = isEnabled(element, "data-splide-autoscroll");
 
-			if (autoscroll) {
-				options.autoScroll = {
-					speed: getNumber(element, "data-splide-autoscroll-speed", 1),
-					pauseOnHover: getBoolean(element, "data-splide-autoscroll-pause-on-hover", true),
-					pauseOnFocus: getBoolean(element, "data-splide-autoscroll-pause-on-focus", true),
-				};
-			}
+			record.onMediaChange = () => reconcile(record, record.mediaQuery.matches);
+			record.mediaQuery?.addEventListener?.("change", record.onMediaChange);
+			reconcile(record, record.mediaQuery?.matches ?? false);
 
-			const instance = new SplideConstructor(element, options);
-			return autoscroll ? instance.mount({ AutoScroll }) : instance.mount();
+			return record;
 		});
 
-	return () => instances.forEach((instance) => instance.destroy());
+	return () =>
+		records.forEach((record) => {
+			record.mediaQuery?.removeEventListener?.("change", record.onMediaChange);
+			destroy(record);
+		});
 }

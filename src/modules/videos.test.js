@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { initPanelStack } from "./panel-stack.js";
 import { initVideos } from "./videos.js";
 
 vi.mock("plyr", () => ({ default: class PlyrDefaultDouble {} }));
@@ -15,18 +16,22 @@ class PlyrDouble {
 		this.ready = element.tagName === "VIDEO";
 		this.stopped = false;
 		this.destroyed = false;
+		this.playCalls = 0;
+		this.stopCalls = 0;
 		this.listeners = new Map();
 		element.dataset.videoPlayerReady = "";
 		PlyrDouble.instances.push(this);
 	}
 
 	play() {
+		this.playCalls += 1;
 		this.element.dataset.videoPlaying = "";
 		return Promise.resolve();
 	}
 
 	stop() {
 		if (!this.ready) return;
+		this.stopCalls += 1;
 		this.stopped = true;
 		delete this.element.dataset.videoPlaying;
 	}
@@ -68,6 +73,65 @@ function renderVideoComponent(source) {
 			</div>
 		</dialog>
 	`;
+}
+
+function inlineSource(name, attributes = "", media = `<video playsinline src="https://media.example.com/${name}.mp4"></video>`) {
+	return `
+		<div data-video-inline>
+			<template data-video-source data-video-autoplay="true" ${attributes}>${media}</template>
+			<div data-video-mount></div>
+		</div>
+	`;
+}
+
+function renderInlineStack({ sourceCount = 3, activeIndex = 0 } = {}) {
+	document.body.innerHTML = `
+		<section data-panel-stack>
+			<div data-panel-stack-list>
+				${Array.from({ length: sourceCount }, (_, index) => `
+					<div data-panel-stack-item${index === activeIndex ? ' class="is-open"' : ""}>
+						<div data-panel-stack-source>${inlineSource(`clip-${index}`)}</div>
+					</div>
+				` ).join("")}
+			</div>
+			<div data-panel-stack-stage></div>
+		</section>
+	`;
+}
+
+function dispatchPanelState(component, detail) {
+	component.dispatchEvent(new CustomEvent("panel-stack:statechange", { bubbles: true, detail }));
+}
+
+function createMatchMedia(matches = false) {
+	const listeners = new Set();
+	return {
+		matches,
+		addEventListener: (_type, listener) => listeners.add(listener),
+		removeEventListener: (_type, listener) => listeners.delete(listener),
+		setMatches(nextMatches) {
+			this.matches = nextMatches;
+			listeners.forEach((listener) => listener({ matches: nextMatches }));
+		},
+	};
+}
+
+function createGsap() {
+	const setAutoAlpha = (targets, variables) => {
+		if (variables.autoAlpha === undefined) return;
+		for (const target of Array.isArray(targets) ? targets : [targets]) {
+			target.style.opacity = String(variables.autoAlpha);
+			target.style.visibility = variables.autoAlpha === 0 ? "hidden" : "inherit";
+		}
+	};
+	return {
+		set: vi.fn(setAutoAlpha),
+		to: vi.fn((target, variables) => {
+			setAutoAlpha(target, variables);
+			return { kill: vi.fn() };
+		}),
+		killTweensOf: vi.fn(),
+	};
 }
 
 describe("initVideos", () => {
@@ -245,5 +309,169 @@ describe("initVideos", () => {
 		trigger.click();
 		expect(document.querySelector("[data-video-dialog]").open).toBe(true);
 		expect(document.querySelector("[data-video-playing]")).not.toBeNull();
+	});
+
+	it("eagerly initializes every inline video and autoplays only the active source", () => {
+		renderInlineStack();
+		cleanup = initVideos(document, PlyrDouble);
+
+		expect(PlyrDouble.instances).toHaveLength(3);
+		expect(PlyrDouble.instances.map((player) => player.config.autoplay)).toEqual([
+			false,
+			false,
+			false,
+		]);
+		expect(PlyrDouble.instances.map((player) => player.playCalls)).toEqual([1, 0, 0]);
+		expect(PlyrDouble.instances.slice(1).every((player) => player.stopped)).toBe(true);
+	});
+
+	it("applies inline autoplay, loop, and muted settings when a source becomes active", () => {
+		renderInlineStack({ sourceCount: 2 });
+		const firstTemplate = document.querySelector("template[data-video-source]");
+		firstTemplate.dataset.videoAutoplay = "false";
+		firstTemplate.dataset.videoLoop = "true";
+		firstTemplate.dataset.videoMuted = "true";
+		cleanup = initVideos(document, PlyrDouble);
+
+		const [firstPlayer] = PlyrDouble.instances;
+		expect(firstPlayer.config.loop).toEqual({ active: true });
+		expect(firstPlayer.config.muted).toBe(true);
+		expect(firstPlayer.playCalls).toBe(0);
+		expect(firstPlayer.element.muted).toBe(true);
+	});
+
+	it("stops and resets the old inline player before starting the new active source", () => {
+		renderInlineStack({ sourceCount: 2 });
+		cleanup = initVideos(document, PlyrDouble);
+		const component = document.querySelector("[data-panel-stack]");
+		const [firstSource, secondSource] = component.querySelectorAll("[data-panel-stack-source]");
+		const [firstPlayer, secondPlayer] = PlyrDouble.instances;
+
+		dispatchPanelState(component, {
+			mode: "mobile",
+			sources: [firstSource, secondSource],
+			activeSource: secondSource,
+			previousSource: firstSource,
+		});
+
+		expect(firstPlayer.stopCalls).toBe(1);
+		expect(firstPlayer.stopped).toBe(true);
+		expect(secondPlayer.playCalls).toBe(1);
+	});
+
+	it("keeps autoplay-disabled inline videos paused at the beginning", () => {
+		renderInlineStack({ sourceCount: 1 });
+		document.querySelector("template[data-video-source]").dataset.videoAutoplay = "false";
+		cleanup = initVideos(document, PlyrDouble);
+
+		expect(PlyrDouble.instances[0].playCalls).toBe(0);
+		expect(PlyrDouble.instances[0].stopped).toBe(true);
+	});
+
+	it("suppresses inline autoplay when reduced motion is preferred", () => {
+		renderInlineStack({ sourceCount: 1 });
+		vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: true })));
+		cleanup = initVideos(document, PlyrDouble);
+
+		expect(PlyrDouble.instances[0].playCalls).toBe(0);
+		expect(PlyrDouble.instances[0].stopped).toBe(true);
+	});
+
+	it.each(["youtube", "vimeo"])(
+		"disposes an inline %s player switched away before provider readiness",
+		(provider) => {
+			renderInlineStack({ sourceCount: 2 });
+			const templates = document.querySelectorAll("template[data-video-source]");
+			templates[0].innerHTML = `<div data-plyr-provider="${provider}" data-plyr-embed-id="video-id"></div>`;
+			cleanup = initVideos(document, PlyrDouble);
+			const component = document.querySelector("[data-panel-stack]");
+			const sources = [...component.querySelectorAll("[data-panel-stack-source]")];
+			const firstPlayer = PlyrDouble.instances[0];
+
+			dispatchPanelState(component, {
+				mode: "mobile",
+				sources,
+				activeSource: sources[1],
+				previousSource: sources[0],
+			});
+
+			expect(firstPlayer.config.autoplay).toBe(false);
+			expect(firstPlayer.destroyed).toBe(false);
+			firstPlayer.emitReady();
+			expect(firstPlayer.stopped).toBe(true);
+			expect(firstPlayer.destroyed).toBe(false);
+		},
+	);
+
+	it("isolates an inline provider error to the failed player", () => {
+		renderInlineStack({ sourceCount: 2 });
+		const templates = document.querySelectorAll("template[data-video-source]");
+		templates[0].innerHTML = '<div data-plyr-provider="youtube" data-plyr-embed-id="bad-id"></div>';
+		const error = vi.spyOn(console, "error").mockImplementation(() => {});
+		cleanup = initVideos(document, PlyrDouble);
+		const [failedPlayer, healthyPlayer] = PlyrDouble.instances;
+
+		failedPlayer.emitError();
+
+		expect(error).toHaveBeenCalledOnce();
+		expect(healthyPlayer.destroyed).toBe(false);
+		expect(healthyPlayer.playCalls).toBe(0);
+	});
+
+	it("destroys every inline player and clears mounts during cleanup", () => {
+		renderInlineStack();
+		cleanup = initVideos(document, PlyrDouble);
+
+		cleanup();
+		cleanup = null;
+
+		expect(PlyrDouble.instances.every((player) => player.destroyed)).toBe(true);
+		expect(document.querySelectorAll("[data-video-mount]")).toHaveLength(3);
+		expect([...document.querySelectorAll("[data-video-mount]")].every((mount) => !mount.hasChildNodes())).toBe(
+			true,
+		);
+	});
+
+	it("integrates with panel-stack without initializing authored and desktop clone videos together", async () => {
+		renderInlineStack();
+		const mediaQuery = createMatchMedia(true);
+		vi.stubGlobal(
+			"matchMedia",
+			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
+		);
+		const panelCleanup = initPanelStack(document, createGsap());
+		cleanup = initVideos(document, PlyrDouble);
+
+		expect(PlyrDouble.instances).toHaveLength(3);
+		expect(document.querySelectorAll("[data-panel-stack-item] [data-video-player-ready]")).toHaveLength(0);
+
+		const [first, second] = document.querySelectorAll("[data-panel-stack-item]");
+		first.classList.remove("is-open");
+		second.classList.add("is-open");
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		expect(PlyrDouble.instances[0].stopped).toBe(true);
+		expect(PlyrDouble.instances[1].playCalls).toBe(1);
+		panelCleanup();
+	});
+
+	it("destroys clone players when panel-stack changes to its authored mobile surface", () => {
+		renderInlineStack();
+		const mediaQuery = createMatchMedia(true);
+		vi.stubGlobal(
+			"matchMedia",
+			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
+		);
+		const panelCleanup = initPanelStack(document, createGsap());
+		cleanup = initVideos(document, PlyrDouble);
+		const desktopPlayers = [...PlyrDouble.instances];
+
+		mediaQuery.setMatches(false);
+
+		expect(desktopPlayers.every((player) => player.destroyed)).toBe(true);
+		expect(PlyrDouble.instances).toHaveLength(6);
+		expect(document.querySelectorAll('[data-panel-stack-generated="source"] [data-video-player-ready]')).toHaveLength(0);
+		expect(document.querySelectorAll("[data-panel-stack-item] [data-video-player-ready]")).toHaveLength(3);
+		panelCleanup();
 	});
 });

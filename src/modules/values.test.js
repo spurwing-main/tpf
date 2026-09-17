@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { initValues } from "./values.js";
+import { initPanelStack } from "./panel-stack.js";
 
 function mediaCard(title) {
 	return `
-		<div class="values_media">
+		<div class="values_media" data-panel-stack-source>
 			<img src="/${title.toLowerCase().replaceAll(" ", "-")}.jpg" alt="${title}">
 			<div class="values_media-content">
 				<div class="values_media-content-inner">
-					<div class="values_media-index"></div>
+					<div class="values_media-index" data-panel-stack-index></div>
 					<div class="values_media-title">${title}</div>
 				</div>
 			</div>
@@ -17,10 +17,9 @@ function mediaCard(title) {
 
 function valueItem(title, isOpen = false) {
 	return `
-		<div class="value-item${isOpen ? " is-open" : ""}" data-accordion="item">
+		<div class="value-item${isOpen ? " is-open" : ""}" data-accordion="item" data-panel-stack-item>
 			<button class="value-item_header" data-accordion="trigger" type="button">${title}</button>
-			<div class="value-item_content" data-accordion="content">Body</div>
-			${mediaCard(title)}
+			<div class="value-item_content" data-accordion="content">Body${mediaCard(title)}</div>
 		</div>
 	`;
 }
@@ -31,12 +30,12 @@ function valuesMarkup({
 	stagePlaceholder = false,
 } = {}) {
 	return `
-		<section class="values"${id ? ` id="${id}"` : ""}>
+	<section class="values" data-panel-stack${id ? ` id="${id}"` : ""}>
 			<div class="values_content">
-				<div class="values_items" data-accordion="component">
+				<div class="values_items" data-accordion="component" data-panel-stack-list>
 					${titles.map((title, index) => valueItem(title, index === 0)).join("")}
 				</div>
-				<div class="values_media-stage">${stagePlaceholder ? `${mediaCard("Placeholder").replace('class="values_media"', 'class="values_media is-placeholder"')}` : ""}</div>
+				<div class="values_media-stage" data-panel-stack-stage>${stagePlaceholder ? `${mediaCard("Placeholder").replace('class="values_media" data-panel-stack-source', 'class="values_media is-placeholder" data-panel-stack-placeholder')}` : ""}</div>
 			</div>
 		</section>
 	`;
@@ -44,6 +43,29 @@ function valuesMarkup({
 
 function renderValues(options) {
 	document.body.innerHTML = valuesMarkup(options);
+}
+
+function servicesMarkup({ titles = ["Strategy", "Coaching", "Events"] } = {}) {
+	return `
+		<section class="services" data-panel-stack>
+			<div class="services_items" data-panel-stack-list>
+				${titles
+					.map(
+						(title, index) => `
+							<div class="service-item${index === 0 ? " is-open" : ""}" data-panel-stack-item>
+								<div class="service-item_header">${title}</div>
+								<div class="service-item_content">
+									<div class="services_media" data-panel-stack-source>
+										<div class="services_media-title">${title}</div>
+									</div>
+								</div>
+							</div>`,
+					)
+					.join("")}
+			</div>
+			<div class="services_media-stage" data-panel-stack-stage></div>
+		</section>
+	`;
 }
 
 function createMatchMedia(matches = false) {
@@ -107,7 +129,7 @@ function createDeferredGsap() {
 	};
 }
 
-describe("initValues", () => {
+describe("initPanelStack", () => {
 	let cleanup;
 
 	beforeEach(() => {
@@ -126,14 +148,159 @@ describe("initValues", () => {
 			vi.fn(() => mediaQuery),
 		);
 
-		cleanup = initValues(document, createGsap());
+		cleanup = initPanelStack(document, createGsap());
 
 		expect(
-			[...document.querySelectorAll(".value-item .values_media-index")].map(
+			[...document.querySelectorAll(".value-item [data-panel-stack-index]")].map(
 				(node) => node.textContent,
 			),
 		).toEqual(["01 / 03", "02 / 03", "03 / 03"]);
-		expect(document.querySelector(".values_media-stage").childElementCount).toBe(0);
+		expect(document.querySelector("[data-panel-stack-stage]").childElementCount).toBe(0);
+	});
+
+	it("emits the current mobile render surface and active source", () => {
+		renderValues();
+		const mediaQuery = createMatchMedia(false);
+		vi.stubGlobal("matchMedia", vi.fn(() => mediaQuery));
+		const stateChanges = [];
+		document.addEventListener("panel-stack:statechange", (event) => stateChanges.push(event));
+
+		cleanup = initPanelStack(document, createGsap());
+
+		const component = document.querySelector("[data-panel-stack]");
+		const sources = [...component.querySelectorAll("[data-panel-stack-source]")];
+		expect(stateChanges).toHaveLength(1);
+		expect(stateChanges[0].target).toBe(component);
+		expect(stateChanges[0].detail).toEqual({
+			mode: "mobile",
+			sources,
+			activeSource: sources[0],
+			previousSource: null,
+		});
+	});
+
+	it("emits generated desktop sources and the previous source when an item changes", async () => {
+		renderValues();
+		const mediaQuery = createMatchMedia(true);
+		vi.stubGlobal(
+			"matchMedia",
+			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
+		);
+		const stateChanges = [];
+		document.addEventListener("panel-stack:statechange", (event) => stateChanges.push(event));
+
+		cleanup = initPanelStack(document, createGsap());
+		const [first, second] = document.querySelectorAll(".value-item");
+		const clones = [...document.querySelectorAll('[data-panel-stack-generated="source"]')];
+
+		first.classList.remove("is-open");
+		second.classList.add("is-open");
+		await flushMutations();
+
+		expect(stateChanges).toHaveLength(2);
+		expect(stateChanges[0].detail).toEqual({
+			mode: "desktop",
+			sources: clones,
+			activeSource: clones[0],
+			previousSource: null,
+		});
+		expect(stateChanges[1].detail).toEqual({
+			mode: "desktop",
+			sources: clones,
+			activeSource: clones[1],
+			previousSource: clones[0],
+		});
+	});
+
+	it("emits the authored sources after returning from desktop to mobile", () => {
+		renderValues();
+		const mediaQuery = createMatchMedia(true);
+		vi.stubGlobal(
+			"matchMedia",
+			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
+		);
+		const stateChanges = [];
+		document.addEventListener("panel-stack:statechange", (event) => stateChanges.push(event));
+
+		cleanup = initPanelStack(document, createGsap());
+		const desktopSources = stateChanges[0].detail.sources;
+		mediaQuery.setMatches(false);
+
+		const mobileSources = [...document.querySelectorAll(".value-item [data-panel-stack-source]")];
+		expect(stateChanges).toHaveLength(2);
+		expect(stateChanges[1].detail).toEqual({
+			mode: "mobile",
+			sources: mobileSources,
+			activeSource: mobileSources[0],
+			previousSource: desktopSources[0],
+		});
+	});
+
+	it("emits a rebuilt mobile surface when items are added or reordered", async () => {
+		renderValues();
+		const mediaQuery = createMatchMedia(false);
+		vi.stubGlobal("matchMedia", vi.fn(() => mediaQuery));
+		const stateChanges = [];
+		document.addEventListener("panel-stack:statechange", (event) => stateChanges.push(event));
+		cleanup = initPanelStack(document, createGsap());
+
+		const items = document.querySelector("[data-panel-stack-list]");
+		items.insertAdjacentHTML("beforeend", valueItem("Curiosity"));
+		await flushMutations();
+		const [first, second, third, fourth] = items.children;
+		items.prepend(fourth);
+		await flushMutations();
+
+		expect(stateChanges).toHaveLength(3);
+		expect(stateChanges.at(-1).detail.sources).toEqual([
+			fourth.querySelector("[data-panel-stack-source]"),
+			first.querySelector("[data-panel-stack-source]"),
+			second.querySelector("[data-panel-stack-source]"),
+			third.querySelector("[data-panel-stack-source]"),
+		]);
+		expect(stateChanges.at(-1).detail.activeSource).toBe(
+			first.querySelector("[data-panel-stack-source]"),
+		);
+	});
+
+	it("emits the authored surface when desktop stacking has no stage", () => {
+		renderValues();
+		document.querySelector("[data-panel-stack-stage]").remove();
+		const mediaQuery = createMatchMedia(true);
+		vi.stubGlobal("matchMedia", vi.fn(() => mediaQuery));
+		const stateChanges = [];
+		document.addEventListener("panel-stack:statechange", (event) => stateChanges.push(event));
+		cleanup = initPanelStack(document, createGsap());
+
+		const sources = [...document.querySelectorAll("[data-panel-stack-source]")];
+		expect(stateChanges).toHaveLength(1);
+		expect(stateChanges[0].detail).toEqual({
+			mode: "mobile",
+			sources,
+			activeSource: sources[0],
+			previousSource: null,
+		});
+	});
+
+	it("supports a Services-shaped component without Values-specific classes or indices", () => {
+		document.body.innerHTML = servicesMarkup();
+		const mediaQuery = createMatchMedia(true);
+		vi.stubGlobal(
+			"matchMedia",
+			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
+		);
+
+		cleanup = initPanelStack(document, createGsap());
+
+		const clones = [...document.querySelectorAll('[data-panel-stack-generated="source"]')];
+		expect(clones).toHaveLength(3);
+		expect(clones.map((clone) => clone.querySelector(".services_media-title").textContent)).toEqual([
+			"Strategy",
+			"Coaching",
+			"Events",
+		]);
+		expect(clones[0].classList.contains("is-active")).toBe(true);
+		expect(document.querySelectorAll("[data-panel-stack-index]")).toHaveLength(0);
 	});
 
 	it("keeps authored index nodes during cleanup", () => {
@@ -142,14 +309,14 @@ describe("initValues", () => {
 			"matchMedia",
 			vi.fn(() => createMatchMedia(false)),
 		);
-		cleanup = initValues(document, createGsap());
+		cleanup = initPanelStack(document, createGsap());
 
 		cleanup();
 		cleanup = null;
 
-		expect(document.querySelectorAll(".value-item .values_media-index")).toHaveLength(3);
+		expect(document.querySelectorAll(".value-item [data-panel-stack-index]")).toHaveLength(3);
 		expect(
-			[...document.querySelectorAll(".value-item .values_media-index")].map(
+			[...document.querySelectorAll(".value-item [data-panel-stack-index]")].map(
 				(node) => node.textContent,
 			),
 		).toEqual(["01 / 03", "02 / 03", "03 / 03"]);
@@ -163,9 +330,9 @@ describe("initValues", () => {
 			"matchMedia",
 			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
 		);
-		cleanup = initValues(document, createGsap());
+		cleanup = initPanelStack(document, createGsap());
 
-		const clones = [...document.querySelectorAll('[data-values-generated="media"]')];
+		const clones = [...document.querySelectorAll('[data-panel-stack-generated="source"]')];
 		expect(clones).toHaveLength(3);
 		expect(clones.map((clone) => clone.querySelector(".values_media-title").textContent)).toEqual([
 			"Integrity",
@@ -184,10 +351,10 @@ describe("initValues", () => {
 			"matchMedia",
 			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
 		);
-		cleanup = initValues(document, createGsap());
+		cleanup = initPanelStack(document, createGsap());
 
-		const stage = document.querySelector(".values_media-stage");
-		const clones = [...document.querySelectorAll('[data-values-generated="media"]')];
+		const stage = document.querySelector("[data-panel-stack-stage]");
+		const clones = [...document.querySelectorAll('[data-panel-stack-generated="source"]')];
 
 		expect(stage.querySelector(".values_media.is-placeholder")).toBeNull();
 		expect(clones).toHaveLength(3);
@@ -202,14 +369,14 @@ describe("initValues", () => {
 			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
 		);
 		const gsap = createGsap();
-		cleanup = initValues(document, gsap);
+		cleanup = initPanelStack(document, gsap);
 		const [first, second] = document.querySelectorAll(".value-item");
 
 		first.classList.remove("is-open");
 		second.classList.add("is-open");
 		await Promise.resolve();
 
-		const clones = [...document.querySelectorAll('[data-values-generated="media"]')];
+		const clones = [...document.querySelectorAll('[data-panel-stack-generated="source"]')];
 		expect(clones[0].classList.contains("is-active")).toBe(false);
 		expect(clones[1].classList.contains("is-active")).toBe(true);
 		expect(gsap.killTweensOf).toHaveBeenCalled();
@@ -231,7 +398,7 @@ describe("initValues", () => {
 			"matchMedia",
 			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
 		);
-		cleanup = initValues(document, createDeferredGsap());
+		cleanup = initPanelStack(document, createDeferredGsap());
 		const [first, second, third] = document.querySelectorAll(".value-item");
 
 		first.classList.remove("is-open");
@@ -241,7 +408,7 @@ describe("initValues", () => {
 		third.classList.add("is-open");
 		await flushMutations();
 
-		const clones = [...document.querySelectorAll('[data-values-generated="media"]')];
+		const clones = [...document.querySelectorAll('[data-panel-stack-generated="source"]')];
 		expect(clones[0].style.opacity).toBe("0");
 		expect(clones[0].style.visibility).toBe("hidden");
 		expect(clones[1].style.opacity).toBe("0.5");
@@ -255,14 +422,14 @@ describe("initValues", () => {
 			"matchMedia",
 			vi.fn((query) => ({ matches: query.includes("min-width") })),
 		);
-		cleanup = initValues(document, createGsap());
+		cleanup = initPanelStack(document, createGsap());
 		const first = document.querySelector(".value-item");
 
 		first.classList.remove("is-open");
 		await Promise.resolve();
 
 		expect(
-			document.querySelector('[data-values-generated="media"].is-active .values_media-title')
+			document.querySelector('[data-panel-stack-generated="source"].is-active .values_media-title')
 				.textContent,
 		).toBe("Integrity");
 	});
@@ -276,7 +443,7 @@ describe("initValues", () => {
 			vi.fn((query) => (query === "(min-width: 768px)" ? desktopQuery : reducedMotionQuery)),
 		);
 		const gsap = createGsap();
-		cleanup = initValues(document, gsap);
+		cleanup = initPanelStack(document, gsap);
 		const [first, second] = document.querySelectorAll(".value-item");
 
 		first.classList.remove("is-open");
@@ -302,17 +469,17 @@ describe("initValues", () => {
 	it("keeps the outer selection when a nested Values item opens", async () => {
 		renderValues({ titles: ["Outer first", "Outer second"] });
 		document.querySelector(".value-item_content").innerHTML = `
-			<section class="values">
+			<section class="values" data-panel-stack>
 				<div class="values_content">
-					<div class="values_items" data-accordion="component">
-						<div class="value-item is-open" data-accordion="item">
+					<div class="values_items" data-accordion="component" data-panel-stack-list>
+						<div class="value-item is-open" data-accordion="item" data-panel-stack-item>
 							${mediaCard("Nested first")}
 						</div>
-						<div class="value-item" data-accordion="item">
+						<div class="value-item" data-accordion="item" data-panel-stack-item>
 							${mediaCard("Nested second")}
 						</div>
 					</div>
-					<div class="values_media-stage"></div>
+					<div class="values_media-stage" data-panel-stack-stage></div>
 				</div>
 			</section>
 		`;
@@ -321,13 +488,13 @@ describe("initValues", () => {
 			"matchMedia",
 			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
 		);
-		cleanup = initValues(document, createGsap());
+		cleanup = initPanelStack(document, createGsap());
 		const outerComponent = document.body.firstElementChild;
 		const outerItems = [
 			...outerComponent.querySelector(":scope > .values_content > .values_items").children,
 		];
 		const outerStage = outerComponent.querySelector(
-			":scope > .values_content > .values_media-stage",
+			":scope > .values_content > [data-panel-stack-stage]",
 		);
 		const nestedItems = [
 			...outerComponent.querySelector(".value-item_content .values_items").children,
@@ -363,12 +530,12 @@ describe("initValues", () => {
 			"matchMedia",
 			vi.fn((query) => ({ matches: query.includes("min-width") })),
 		);
-		cleanup = initValues(document, createGsap());
+		cleanup = initPanelStack(document, createGsap());
 
 		expect(first.querySelector(".value-item_content .values_media")).toBe(media);
-		expect(first.querySelector(".values_media-index")?.textContent).toBe("01 / 03");
+		expect(first.querySelector("[data-panel-stack-index]")?.textContent).toBe("01 / 03");
 		expect(
-			document.querySelector('[data-values-generated="media"].is-active .values_media-title')
+			document.querySelector('[data-panel-stack-generated="source"].is-active .values_media-title')
 				.textContent,
 		).toBe("Integrity");
 	});
@@ -380,7 +547,7 @@ describe("initValues", () => {
 			"matchMedia",
 			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
 		);
-		cleanup = initValues(document, createGsap());
+		cleanup = initPanelStack(document, createGsap());
 		const [first, second] = document.querySelectorAll(".value-item");
 
 		first.classList.remove("is-open");
@@ -388,10 +555,10 @@ describe("initValues", () => {
 		await flushMutations();
 		mediaQuery.setMatches(true);
 
-		const clones = [...document.querySelectorAll('[data-values-generated="media"]')];
+		const clones = [...document.querySelectorAll('[data-panel-stack-generated="source"]')];
 		expect(clones).toHaveLength(3);
 		expect(
-			document.querySelector('[data-values-generated="media"].is-active .values_media-title')
+			document.querySelector('[data-panel-stack-generated="source"].is-active .values_media-title')
 				.textContent,
 		).toBe("Human first");
 	});
@@ -403,12 +570,12 @@ describe("initValues", () => {
 			"matchMedia",
 			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
 		);
-		cleanup = initValues(document, createGsap());
+		cleanup = initPanelStack(document, createGsap());
 
 		mediaQuery.setMatches(false);
 
-		expect(document.querySelectorAll('[data-values-generated="media"]')).toHaveLength(0);
-		expect(document.querySelectorAll(".value-item > .values_media")).toHaveLength(3);
+		expect(document.querySelectorAll('[data-panel-stack-generated="source"]')).toHaveLength(0);
+		expect(document.querySelectorAll(".value-item [data-panel-stack-source]")).toHaveLength(3);
 	});
 
 	it("reindexes a newly appended direct item without selecting it", async () => {
@@ -418,20 +585,20 @@ describe("initValues", () => {
 			"matchMedia",
 			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
 		);
-		cleanup = initValues(document, createGsap());
+		cleanup = initPanelStack(document, createGsap());
 		const items = document.querySelector(".values_items");
 		items.insertAdjacentHTML("beforeend", valueItem("Curiosity"));
 
 		await flushMutations();
 
 		expect(
-			[...document.querySelectorAll(".value-item .values_media-index")].map(
+			[...document.querySelectorAll(".value-item [data-panel-stack-index]")].map(
 				(node) => node.textContent,
 			),
 		).toEqual(["01 / 04", "02 / 04", "03 / 04", "04 / 04"]);
-		expect(document.querySelectorAll('[data-values-generated="media"]')).toHaveLength(4);
+		expect(document.querySelectorAll('[data-panel-stack-generated="source"]')).toHaveLength(4);
 		expect(
-			document.querySelector('[data-values-generated="media"].is-active .values_media-title')
+			document.querySelector('[data-panel-stack-generated="source"].is-active .values_media-title')
 				.textContent,
 		).toBe("Integrity");
 	});
@@ -442,7 +609,7 @@ describe("initValues", () => {
 			"matchMedia",
 			vi.fn(() => createMatchMedia(false)),
 		);
-		cleanup = initValues(document, createGsap());
+		cleanup = initPanelStack(document, createGsap());
 		const items = document.querySelector(".values_items");
 		const [first, second, third] = items.children;
 
@@ -453,7 +620,7 @@ describe("initValues", () => {
 		expect(
 			[...items.children].map((item) => ({
 				title: item.querySelector(".value-item_header").textContent,
-				index: item.querySelector(".values_media-index").textContent,
+				index: item.querySelector("[data-panel-stack-index]").textContent,
 			})),
 		).toEqual([
 			{ title: "Quality", index: "01 / 02" },
@@ -472,7 +639,7 @@ describe("initValues", () => {
 			"matchMedia",
 			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
 		);
-		cleanup = initValues(document, createGsap());
+		cleanup = initPanelStack(document, createGsap());
 		const secondItems = document.querySelectorAll("#second-values .value-item");
 
 		secondItems[0].classList.remove("is-open");
@@ -480,11 +647,11 @@ describe("initValues", () => {
 		await flushMutations();
 
 		expect(
-			document.querySelector("#first-values .values_media-stage .is-active .values_media-title")
+			document.querySelector("#first-values [data-panel-stack-stage] .is-active .values_media-title")
 				.textContent,
 		).toBe("First A");
 		expect(
-			document.querySelector("#second-values .values_media-stage .is-active .values_media-title")
+			document.querySelector("#second-values [data-panel-stack-stage] .is-active .values_media-title")
 				.textContent,
 		).toBe("Second B");
 	});
@@ -497,8 +664,8 @@ describe("initValues", () => {
 			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
 		);
 		const gsap = createGsap();
-		const firstCleanup = initValues(document, gsap);
-		const secondCleanup = initValues(document, gsap);
+		const firstCleanup = initPanelStack(document, gsap);
+		const secondCleanup = initPanelStack(document, gsap);
 		cleanup = firstCleanup;
 		const [first, second] = document.querySelectorAll(".value-item");
 
@@ -507,7 +674,7 @@ describe("initValues", () => {
 		await flushMutations();
 
 		expect(secondCleanup).toBe(firstCleanup);
-		expect(document.querySelectorAll('[data-values-generated="media"]')).toHaveLength(3);
+		expect(document.querySelectorAll('[data-panel-stack-generated="source"]')).toHaveLength(3);
 		expect(gsap.to).toHaveBeenCalledTimes(2);
 	});
 
@@ -519,7 +686,7 @@ describe("initValues", () => {
 			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
 		);
 		const gsap = createGsap();
-		cleanup = initValues(document, gsap);
+		cleanup = initPanelStack(document, gsap);
 		const component = document.querySelector(".values");
 		gsap.killTweensOf.mockClear();
 
@@ -527,7 +694,7 @@ describe("initValues", () => {
 		await flushMutations();
 
 		expect(gsap.killTweensOf).toHaveBeenCalledTimes(1);
-		expect(component.querySelectorAll("[data-values-generated]")).toHaveLength(0);
+		expect(component.querySelectorAll("[data-panel-stack-generated]")).toHaveLength(0);
 		expect(mediaQuery.listenerCount()).toBe(0);
 	});
 
@@ -539,7 +706,7 @@ describe("initValues", () => {
 			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
 		);
 		const gsap = createGsap();
-		cleanup = initValues(document, gsap);
+		cleanup = initPanelStack(document, gsap);
 		const component = document.querySelector(".values");
 		const items = component.querySelector(".values_items");
 
@@ -547,7 +714,7 @@ describe("initValues", () => {
 		cleanup();
 		cleanup = null;
 		expect(mediaQuery.listenerCount()).toBe(0);
-		expect(component.querySelectorAll("[data-values-generated]")).toHaveLength(0);
+		expect(component.querySelectorAll("[data-panel-stack-generated]")).toHaveLength(0);
 
 		items.firstElementChild.classList.remove("is-open");
 		items.insertAdjacentHTML("beforeend", valueItem("Ignored"));
@@ -556,7 +723,7 @@ describe("initValues", () => {
 		mediaQuery.setMatches(true);
 		await flushMutations();
 
-		expect(document.querySelectorAll("[data-values-generated]")).toHaveLength(0);
+		expect(document.querySelectorAll("[data-panel-stack-generated]")).toHaveLength(0);
 		expect(gsap.to).not.toHaveBeenCalled();
 	});
 
@@ -564,11 +731,11 @@ describe("initValues", () => {
 		renderValues();
 		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-		cleanup = initValues(document, undefined);
+		cleanup = initPanelStack(document, undefined);
 
 		expect(warn).toHaveBeenCalledOnce();
 		expect(warn).toHaveBeenCalledWith(
-			"[values] GSAP was not found. Load GSAP before initializing Values.",
+			"[panel-stack] GSAP was not found. Load GSAP before initializing panel stacks.",
 		);
 		expect(() => {
 			cleanup();
@@ -578,22 +745,22 @@ describe("initValues", () => {
 
 	it("warns once for a missing stage while keeping mobile indices working", async () => {
 		renderValues();
-		document.querySelector(".values_media-stage").remove();
+		document.querySelector("[data-panel-stack-stage]").remove();
 		const mediaQuery = createMatchMedia(false);
 		vi.stubGlobal(
 			"matchMedia",
 			vi.fn(() => mediaQuery),
 		);
 		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-		cleanup = initValues(document, createGsap());
+		cleanup = initPanelStack(document, createGsap());
 
 		document.querySelector(".values_items").insertAdjacentHTML("beforeend", valueItem("Curiosity"));
 		await flushMutations();
 
 		expect(warn).toHaveBeenCalledOnce();
-		expect(warn.mock.calls[0][0]).toContain(".values_media-stage");
+		expect(warn.mock.calls[0][0]).toContain("data-panel-stack-stage");
 		expect(
-			[...document.querySelectorAll(".values_media-index")].map((node) => node.textContent),
+			[...document.querySelectorAll("[data-panel-stack-index]")].map((node) => node.textContent),
 		).toEqual(["01 / 04", "02 / 04", "03 / 04", "04 / 04"]);
 	});
 
@@ -607,14 +774,14 @@ describe("initValues", () => {
 			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
 		);
 		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-		cleanup = initValues(document, createGsap());
+		cleanup = initPanelStack(document, createGsap());
 
 		document.querySelector(".values_items").append(document.querySelector(".value-item"));
 		await flushMutations();
 
 		expect(warn).toHaveBeenCalledOnce();
-		expect(document.querySelectorAll(".value-item .values_media-index")).toHaveLength(2);
-		expect(document.querySelectorAll('[data-values-generated="media"]')).toHaveLength(2);
+		expect(document.querySelectorAll(".value-item [data-panel-stack-index]")).toHaveLength(2);
+		expect(document.querySelectorAll('[data-panel-stack-generated="source"]')).toHaveLength(2);
 	});
 
 	it("does not initialize a component appended and removed before the root observer flushes", async () => {
@@ -623,7 +790,7 @@ describe("initValues", () => {
 			"matchMedia",
 			vi.fn((query) => (query === "(min-width: 768px)" ? mediaQuery : { matches: false })),
 		);
-		cleanup = initValues(document, createGsap());
+		cleanup = initPanelStack(document, createGsap());
 		const template = document.createElement("template");
 		template.innerHTML = valuesMarkup();
 		const component = template.content.firstElementChild;
@@ -632,7 +799,7 @@ describe("initValues", () => {
 		component.remove();
 		await flushMutations();
 
-		expect(component.querySelectorAll("[data-values-generated]")).toHaveLength(0);
+		expect(component.querySelectorAll("[data-panel-stack-generated]")).toHaveLength(0);
 		expect(mediaQuery.listenerCount()).toBe(0);
 	});
 });

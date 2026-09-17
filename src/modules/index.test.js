@@ -5,8 +5,11 @@ import { initLogoRevolver } from "./logo-revolver.js";
 import { initDialogs } from "./dialogs.js";
 import { initStats } from "./stats.js";
 import { initTestimonials } from "./testimonials.js";
-import { initValues } from "./values.js";
+import { initPanelStack } from "./panel-stack.js";
 import { initVideos } from "./videos.js";
+import { initFaqSchema } from "./faq-schema.js";
+import { initWhatsapp } from "./whatsapp.js";
+import { initWhatsappPin } from "./whatsapp-pin.js";
 
 vi.mock("plyr", () => ({ default: class PlyrDefaultDouble {} }));
 
@@ -23,13 +26,13 @@ describe("module registry", () => {
 		expect(modules).toContainEqual({ name: "accordions", init: initAccordions });
 	});
 
-	it("starts Values after accordions so initial open state is available", () => {
+	it("starts panel stacks after accordions so initial open state is available", () => {
 		const accordionIndex = modules.findIndex(({ init }) => init === initAccordions);
-		const valuesIndex = modules.findIndex(({ init }) => init === initValues);
+		const panelStackIndex = modules.findIndex(({ init }) => init === initPanelStack);
 
 		expect(accordionIndex).toBeGreaterThanOrEqual(0);
-		expect(valuesIndex).toBe(accordionIndex + 1);
-		expect(modules[valuesIndex]).toEqual({ name: "values", init: initValues });
+		expect(panelStackIndex).toBe(accordionIndex + 1);
+		expect(modules[panelStackIndex]).toEqual({ name: "panelStack", init: initPanelStack });
 	});
 
 	it("registers the stats initializer with the site boot sequence", () => {
@@ -38,6 +41,18 @@ describe("module registry", () => {
 
 	it("registers the video initializer with the site boot sequence", () => {
 		expect(modules).toContainEqual({ name: "videos", init: initVideos });
+	});
+
+	it("registers the FAQ schema initializer with the site boot sequence", () => {
+		expect(modules).toContainEqual({ name: "faqSchema", init: initFaqSchema });
+	});
+
+	it("registers the WhatsApp initializer with the site boot sequence", () => {
+		expect(modules).toContainEqual({ name: "whatsapp", init: initWhatsapp });
+	});
+
+	it("registers the WhatsApp pin initializer with the site boot sequence", () => {
+		expect(modules).toContainEqual({ name: "whatsappPin", init: initWhatsappPin });
 	});
 
 	it("registers the custom testimonial initializer after generic sliders", () => {

@@ -2,11 +2,26 @@ const DURATION = 0.4;
 const EASE = "power2.inOut";
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
+const classes = {
+	open: "is-open",
+};
+
+const attributes = {
+	accordion: "data-accordion",
+	closeOthers: "data-accordion-close-others",
+	firstOpen: "data-accordion-first-open",
+	expanded: "aria-expanded",
+	controls: "aria-controls",
+	hidden: "aria-hidden",
+	inert: "inert",
+	id: "id",
+};
+
 const selectors = {
-	component: '[data-accordion="component"]',
-	item: '[data-accordion="item"]',
-	trigger: '[data-accordion="trigger"]',
-	content: '[data-accordion="content"]',
+	component: `[${attributes.accordion}="component"]`,
+	item: `[${attributes.accordion}="item"]`,
+	trigger: `[${attributes.accordion}="trigger"]`,
+	content: `[${attributes.accordion}="content"]`,
 };
 
 const componentRecords = new WeakMap();
@@ -70,10 +85,10 @@ function setState(record, isOpen, animate = true) {
 	record.animationVersion += 1;
 	const animationVersion = record.animationVersion;
 
-	record.item.classList.toggle("is-open", isOpen);
-	record.trigger.setAttribute("aria-expanded", String(isOpen));
-	record.content.setAttribute("aria-hidden", String(!isOpen));
-	record.content.toggleAttribute("inert", !isOpen);
+	record.item.classList.toggle(classes.open, isOpen);
+	record.trigger.setAttribute(attributes.expanded, String(isOpen));
+	record.content.setAttribute(attributes.hidden, String(!isOpen));
+	record.content.toggleAttribute(attributes.inert, !isOpen);
 
 	record.tween?.kill();
 	record.gsap.killTweensOf(record.content);
@@ -82,9 +97,7 @@ function setState(record, isOpen, animate = true) {
 	if (!animate) {
 		record.gsap.set(
 			record.content,
-			isOpen
-				? { clearProps: "height,overflow" }
-				: { height: 0, overflow: "hidden" },
+			isOpen ? { clearProps: "height,overflow" } : { height: 0, overflow: "hidden" },
 		);
 		return;
 	}
@@ -133,18 +146,18 @@ function createItemRecord(context, componentRecord, item, isInitiallyOpen) {
 		animationVersion: 0,
 		onClick: null,
 		initial: {
-			itemWasOpen: item.classList.contains("is-open"),
-			expanded: trigger.getAttribute("aria-expanded"),
-			controls: trigger.getAttribute("aria-controls"),
-			hidden: content.getAttribute("aria-hidden"),
-			inert: content.getAttribute("inert"),
-			id: content.getAttribute("id"),
+			itemWasOpen: item.classList.contains(classes.open),
+			expanded: trigger.getAttribute(attributes.expanded),
+			controls: trigger.getAttribute(attributes.controls),
+			hidden: content.getAttribute(attributes.hidden),
+			inert: content.getAttribute(attributes.inert),
+			id: content.getAttribute(attributes.id),
 			height: content.style.height,
 			overflow: content.style.overflow,
 		},
 	};
 
-	trigger.setAttribute("aria-controls", ensureContentId(content));
+	trigger.setAttribute(attributes.controls, ensureContentId(content));
 	record.onClick = () => {
 		if (record.isOpen) {
 			setState(record, false);
@@ -178,12 +191,12 @@ function destroyItem(record) {
 	const itemIndex = record.component.items.indexOf(record);
 	if (itemIndex !== -1) record.component.items.splice(itemIndex, 1);
 
-	record.item.classList.toggle("is-open", record.initial.itemWasOpen);
-	restoreAttribute(record.trigger, "aria-expanded", record.initial.expanded);
-	restoreAttribute(record.trigger, "aria-controls", record.initial.controls);
-	restoreAttribute(record.content, "aria-hidden", record.initial.hidden);
-	restoreAttribute(record.content, "inert", record.initial.inert);
-	restoreAttribute(record.content, "id", record.initial.id);
+	record.item.classList.toggle(classes.open, record.initial.itemWasOpen);
+	restoreAttribute(record.trigger, attributes.expanded, record.initial.expanded);
+	restoreAttribute(record.trigger, attributes.controls, record.initial.controls);
+	restoreAttribute(record.content, attributes.hidden, record.initial.hidden);
+	restoreAttribute(record.content, attributes.inert, record.initial.inert);
+	restoreAttribute(record.content, attributes.id, record.initial.id);
 	record.content.style.height = record.initial.height;
 	record.content.style.overflow = record.initial.overflow;
 
@@ -196,10 +209,10 @@ function createComponentRecord(context, component) {
 
 	const record = {
 		element: component,
-		closeOthers: component.getAttribute("data-accordion-close-others") !== "false",
+		closeOthers: component.getAttribute(attributes.closeOthers) !== "false",
 		items: [],
 	};
-	const openFirst = component.getAttribute("data-accordion-first-open") === "true";
+	const openFirst = component.getAttribute(attributes.firstOpen) === "true";
 	const items = getOwnedDescendants(component, selectors.item, selectors.component);
 
 	componentRecords.set(component, record);
@@ -275,7 +288,8 @@ export function initAccordions(root = document, gsap = globalThis.gsap) {
 		createComponentRecord(context, component);
 	});
 
-	const Observer = root.ownerDocument?.defaultView?.MutationObserver ?? root.defaultView?.MutationObserver;
+	const Observer =
+		root.ownerDocument?.defaultView?.MutationObserver ?? root.defaultView?.MutationObserver;
 
 	if (observationRoot && Observer) {
 		context.observer = new Observer((mutations) => {
