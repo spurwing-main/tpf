@@ -11,6 +11,7 @@ import { initVideos } from "./videos.js";
 import { initFaqSchema } from "./faq-schema.js";
 import { initWhatsapp } from "./whatsapp.js";
 import { initWhatsappPin } from "./whatsapp-pin.js";
+import { initApplicationForms } from "./application-form.js";
 
 // Import each module here. Keep the start order explicit.
 export const modules = [
@@ -27,4 +28,5 @@ export const modules = [
 	{ name: "faqSchema", init: initFaqSchema },
 	{ name: "whatsapp", init: initWhatsapp },
 	{ name: "whatsappPin", init: initWhatsappPin },
+	{ name: "applicationForms", init: initApplicationForms },
 ];

@@ -1,0 +1,491 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - navigation [ref=e4]:
+      - generic [ref=e7]:
+        - link [ref=e9] [cursor=pointer]:
+          - /url: "#"
+        - generic [ref=e12]:
+          - link "Story" [ref=e13] [cursor=pointer]:
+            - /url: /story
+          - link "Partnerships" [ref=e15] [cursor=pointer]:
+            - /url: /partnerships
+          - link "Fundraisers" [ref=e17] [cursor=pointer]:
+            - /url: /fundraisers
+          - link "Backstage" [ref=e19] [cursor=pointer]:
+            - /url: /backstage
+          - link "Journal" [ref=e21] [cursor=pointer]:
+            - /url: /journal
+        - link "Become a Fundraiser" [ref=e26] [cursor=pointer]:
+          - /url: "#"
+  - main [ref=e32]:
+    - generic [ref=e33]:
+      - generic [ref=e37]:
+        - heading "Creating impact through the power of conversation" [level=1] [ref=e39]
+        - paragraph [ref=e42]: Our team of fundraisers shape how supporters experience and understand charitable missions, creating meaningful connections and inspiring people to become long-term supporters.
+        - generic [ref=e43]:
+          - link "For Charities" [ref=e45] [cursor=pointer]:
+            - /url: "#"
+          - link "For Fundraisers" [ref=e52] [cursor=pointer]:
+            - /url: "#"
+      - generic [ref=e64]:
+        - heading "Our proud partners" [level=2] [ref=e65]
+        - list [ref=e68]:
+          - listitem [ref=e69]:
+            - img "Cats Protection" [ref=e71]
+          - listitem [ref=e72]:
+            - img "Macmillan Cancer Support" [ref=e74]
+          - listitem [ref=e75]:
+            - img "Prostate Cancer UK" [ref=e77]
+          - listitem [ref=e78]:
+            - img "Erskine Veterans Charity" [ref=e80]
+          - listitem [ref=e81]:
+            - img "Royal British Legion" [ref=e83]
+          - listitem [ref=e84]:
+            - img "Alzheimers Society" [ref=e86]
+    - generic [ref=e90]:
+      - generic [ref=e92]:
+        - generic [ref=e93]: STEP INSIDE OUR STORY
+        - heading "Small moments that create meaningful change" [level=2] [ref=e97]
+      - generic [ref=e99]:
+        - paragraph [ref=e100]: On a crowded high street, most moments pass unnoticed. People move quickly, distracted by where they need to be next. And yet, every day, someone pauses long enough to listen to a story they did not expect to hear.
+        - paragraph [ref=e101]: Someone who may never have considered supporting a cause before chooses to get involved, giving a charity the opportunity to build a lasting relationship with a new supporter. While each conversation may seem like a small moment, together they make a meaningful difference to the organisations and communities those charities serve.
+        - paragraph [ref=e102]: We exist to create those moments, helping charities build real human connection in a world increasingly designed to ignore it.
+      - link "Step inside" [ref=e104] [cursor=pointer]:
+        - /url: "#"
+    - generic [ref=e113]:
+      - generic [ref=e114]:
+        - generic [ref=e115]: Where do you belong?
+        - heading "A place for every kind of contribution" [level=2] [ref=e119]
+      - region [ref=e120]:
+        - generic [ref=e121]:
+          - tabpanel "1 of 3" [ref=e122]:
+            - generic [ref=e124]:
+              - generic [ref=e125]:
+                - generic [ref=e126]: For charities
+                - heading "Not every conversation leaves your charity stronger. Ours will." [level=3] [ref=e127]
+              - paragraph [ref=e130]: When a fundraiser represents your charity, they shape how people experience your cause in real time, on busy streets, at train stations, and in fleeting moments where trust is either earned or lost. We believe those moments deserve thoughtful, professional conversations.
+              - link "Explore a Partnership With Us" [ref=e132] [cursor=pointer]:
+                - /url: "#"
+          - tabpanel "2 of 3" [ref=e136]:
+            - generic [ref=e138]:
+              - generic [ref=e139]:
+                - generic [ref=e140]: For fundraisers
+                - heading "Not every conversation leaves your charity stronger. Ours will." [level=3] [ref=e141]
+              - paragraph [ref=e144]: The best fundraisers understand that this work is about far more than targets. It is about reading people, earning trust quickly, representing a cause properly, and knowing how to turn a conversation into something meaningful. We offer progression and serious rewards.
+              - link "Join our Team" [ref=e146] [cursor=pointer]:
+                - /url: "#"
+          - tabpanel [aria-hidden] [ref=e150]:
+            - generic [ref=e152]:
+              - generic [ref=e153]:
+                - generic [ref=e154]: Backstage
+                - heading [level=3] [ref=e155]: Not every conversation leaves your charity stronger. Ours will.
+              - paragraph [ref=e158]: The quality of a street conversation is never accidental. It is shaped long before it happens, emerging from training, planning, leadership, and operational discipline, run by a backstage team dedicated to doing things properly.
+              - link [ref=e160] [cursor=pointer]:
+                - /url: "#"
+                - generic [ref=e161]: Careers Backstage
+        - tablist "Select a slide to show":
+          - tab "Go to slide 1" [selected] [ref=e164] [cursor=pointer]
+          - tab "Go to slide 2" [ref=e165] [cursor=pointer]
+          - tab "Go to slide 3" [ref=e166] [cursor=pointer]
+    - generic [ref=e169]:
+      - generic [ref=e170]:
+        - generic [ref=e172]:
+          - generic [ref=e173]: OUR PHILOSOPHY
+          - heading "Change to A partnership that is never transactional" [level=2] [ref=e177]
+        - generic [ref=e179]:
+          - paragraph [ref=e180]: Professional fundraising is about far more than starting conversations. It is about representing a cause with integrity, earning trust in moments that matter, and creating relationships that last beyond a single interaction.
+          - paragraph [ref=e181]: This standard shapes everything we do, including the people we hire, the way we train, communicate, and represent the organisations we work with. When fundraising is done properly, it does not feel transactional, it is human.
+        - link "Explore a Partnership" [ref=e184] [cursor=pointer]:
+          - /url: "#"
+      - generic [ref=e190]: "Every person who represents a charity through us carries two responsibilities: to protect the brand they stand in front of, and to honour the donor standing in front of them."
+    - generic [ref=e194]:
+      - generic [ref=e195]:
+        - generic [ref=e196]: OUR VALUES
+        - heading "The mindset that fuels our purpose" [level=2] [ref=e200]
+        - paragraph [ref=e203]: Our values shape everything we do. With integrity at our core, a human-first approach and a commitment to uncompromising quality, we operate with purpose, build meaningful relationships and hold ourselves to the highest standards, enabling us to create sustainable, long-term impact for our charity partners.
+      - generic [ref=e204]:
+        - generic [ref=e206]:
+          - generic [ref=e207]:
+            - button [expanded] [ref=e208] [cursor=pointer]:
+              - heading "Integrity at our core" [level=3] [ref=e210]
+            - paragraph [ref=e214]: We believe integrity is what makes our work possible. We are transparent in how we communicate, considered in how we act, and consistent in what we deliver. Our clients and team trust us, and we take that responsibility seriously.
+          - generic [ref=e215]:
+            - button [ref=e216] [cursor=pointer]:
+              - heading "A human-first approach" [level=3] [ref=e218]
+            - paragraph [ref=e221]: We believe integrity is what makes our work possible. We are transparent in how we communicate, considered in how we act, and consistent in what we deliver. Our clients and team trust us, and we take that responsibility seriously.
+          - generic [ref=e222]:
+            - button [ref=e223] [cursor=pointer]:
+              - heading "Uncompromising quality" [level=3] [ref=e225]
+            - paragraph [ref=e228]: We believe integrity is what makes our work possible. We are transparent in how we communicate, considered in how we act, and consistent in what we deliver. Our clients and team trust us, and we take that responsibility seriously.
+        - generic [ref=e230]:
+          - img "Integrity at our core" [ref=e231]
+          - generic [ref=e236]:
+            - generic [ref=e237]: Integrity at our core
+            - generic [ref=e238]: 01 / 03
+    - generic [ref=e241]:
+      - heading "Fundraising in Numbers" [level=2] [ref=e245]
+      - generic [ref=e246]:
+        - generic [ref=e247]:
+          - generic [ref=e248]:
+            - text: £
+            - generic [ref=e249]: "0"
+            - text: m+
+          - generic [ref=e251]: raised in regular giving from donors
+        - generic [ref=e253]:
+          - generic [ref=e254]:
+            - generic [ref=e255]: "0"
+            - text: k+
+          - generic [ref=e257]: supporters per year
+        - generic [ref=e259]:
+          - generic [ref=e260]: "0.1"
+          - generic [ref=e263]: lowest no show rate
+        - generic [ref=e265]:
+          - generic [ref=e266]:
+            - generic [ref=e267]: "0"
+            - text: +
+          - generic [ref=e269]: venues booked per year
+    - generic "Fundraiser testimonials" [ref=e273]:
+      - region [ref=e274]:
+        - generic [ref=e275]:
+          - group "1 of 10" [ref=e276]:
+            - generic [ref=e278]: 02 / 03
+          - group [aria-hidden] [ref=e283]:
+            - generic [ref=e285]:
+              - generic [ref=e286]: 02 / 03
+              - generic [ref=e290]:
+                - generic [ref=e291]: The supporters TPF reach out to are quality supporters... TPF are always ready and able to respond to us... Working collaboratively, with us at Cats... Nothing ever feels to much trouble.
+                - generic [ref=e292]:
+                  - generic [ref=e293]: Rachel M
+                  - generic [ref=e294]: Cats Protection
+          - group [aria-hidden] [ref=e295]:
+            - generic [ref=e297]:
+              - generic [ref=e298]: 02 / 03
+              - generic [ref=e302]:
+                - generic [ref=e303]: TPF has demonstrated a strong understanding of the work and has consistently met its targets. TPF Dash and the IT department are very responsive and friendly. TPF has been a strong ally in helping us reach our goals.
+                - generic [ref=e304]:
+                  - generic [ref=e305]: Pedro V
+                  - generic [ref=e306]: Royal British Legion
+          - group [aria-hidden] [ref=e307]:
+            - generic [ref=e309]:
+              - generic [ref=e310]: 02 / 03
+              - generic [ref=e314]:
+                - generic [ref=e315]: Attrition rates across this year's campaign has been impressively low! TPF provide an extremely high quality of fundraising. There is a special je ne sais quoi about working with TPF.
+                - generic [ref=e316]:
+                  - generic [ref=e317]: Rachael B
+                  - generic [ref=e318]: Prostate Cancer UK
+          - group [aria-hidden] [ref=e319]:
+            - generic [ref=e321]:
+              - generic [ref=e322]: 02 / 03
+              - generic [ref=e326]:
+                - generic [ref=e327]: Proven results from past campaigns... Complaints are handled in a professional manner... DASH is an excellent tool... Easy to work with, always aim to deliver results and when challenges come up they are solution focused.
+                - generic [ref=e328]:
+                  - generic [ref=e329]: Colette G
+                  - generic [ref=e330]: Erskine Veteran's Charity
+          - group [aria-hidden] [ref=e331]:
+            - generic [ref=e333]:
+              - generic [ref=e334]: 02 / 03
+              - generic [ref=e338]:
+                - generic [ref=e339]: This experience has been nothing short of amazing. The insights and strategies provided have helped us navigate challenges effectively and achieve our goals.
+                - generic [ref=e340]:
+                  - generic [ref=e341]: Product Owner, NextGen Products
+                  - generic [ref=e342]: Product Owner
+          - group [aria-hidden] [ref=e343]:
+            - generic [ref=e345]:
+              - generic [ref=e346]: 02 / 03
+              - generic [ref=e350]:
+                - generic [ref=e351]: From the initial consultation to the final delivery, the process was seamless. Their team is professional, knowledgeable, and truly cares about their clients.
+                - generic [ref=e352]:
+                  - generic [ref=e353]: Operations Manager, Global Enterprises
+                  - generic [ref=e354]: Manager of Operations
+          - group [aria-hidden] [ref=e355]:
+            - generic [ref=e357]:
+              - generic [ref=e358]: 02 / 03
+              - generic [ref=e362]:
+                - generic [ref=e363]: I can't recommend this company enough. Their innovative approach and support have been crucial to our success, and I look forward to continuing our partnership.
+                - generic [ref=e364]:
+                  - generic [ref=e365]: Founder, StartUp Hub
+                  - generic [ref=e366]: Founder
+          - group [aria-hidden] [ref=e367]:
+            - generic [ref=e369]:
+              - generic [ref=e370]: 02 / 03
+              - generic [ref=e374]:
+                - generic [ref=e375]: The service provided exceeded our expectations. The attention to detail and commitment to quality made a noticeable difference in our project outcomes.
+                - generic [ref=e376]:
+                  - generic [ref=e377]: Marketing Director, Creative Solutions
+                  - generic [ref=e378]: Director of Marketing
+          - group [aria-hidden] [ref=e379]:
+            - generic [ref=e381]:
+              - generic [ref=e382]: 02 / 03
+              - generic [ref=e386]:
+                - generic [ref=e387]: Working with this team has transformed our business. Their dedication and expertise are unmatched, and we have seen significant growth since we started collaborating.
+                - generic [ref=e388]:
+                  - generic [ref=e389]: CEO, Tech Innovations
+                  - generic [ref=e390]: Chief Executive Officer
+        - generic [ref=e391]:
+          - region "Choose a testimonial" [ref=e392]:
+            - generic [ref=e393]:
+              - button [aria-hidden] [ref=e394]
+              - button [aria-hidden] [ref=e397]
+              - button [aria-hidden] [ref=e400]
+              - button "Go to slide 10" [ref=e403]
+              - button "Go to slide 1" [ref=e406]
+              - button "Go to slide 2" [ref=e409]
+              - button [aria-hidden] [ref=e412]
+              - button [aria-hidden] [ref=e415]
+              - button [aria-hidden] [ref=e418]
+              - button [aria-hidden] [ref=e421]
+              - button [aria-hidden] [ref=e424]
+              - button [aria-hidden] [ref=e427]
+              - button [aria-hidden] [ref=e430]
+              - button [aria-hidden] [ref=e433]
+              - button [aria-hidden] [ref=e436]
+              - button [aria-hidden] [ref=e439]
+              - button [aria-hidden] [ref=e442]
+              - button [aria-hidden] [ref=e445]
+          - generic [ref=e449]:
+            - button "Go to last slide" [ref=e450] [cursor=pointer]
+            - button "Next slide" [ref=e453] [cursor=pointer]
+    - generic [ref=e459]:
+      - generic [ref=e460]:
+        - generic [ref=e461]:
+          - generic [ref=e462]: Latest Insights
+          - heading "The Journal" [level=2] [ref=e466]
+          - paragraph [ref=e469]: Every organisation has updates. Very few have a point of view. This is ours.
+        - link "Explore our Journal" [ref=e471] [cursor=pointer]:
+          - /url: /journal
+      - generic [ref=e475]:
+        - list [ref=e477]:
+          - listitem [ref=e478]:
+            - generic [ref=e479]:
+              - generic [ref=e482]:
+                - generic [ref=e483]:
+                  - generic [ref=e484]:
+                    - generic [ref=e485]: August 11, 2026
+                    - generic [ref=e486]: ·
+                    - generic [ref=e487]: 6 min read
+                  - heading "What Fundraising Teaches Us About People" [level=3] [ref=e488]
+                - link "Read more" [ref=e490] [cursor=pointer]:
+                  - /url: /insights/what-fundraising-teaches-us-about-people
+              - link [ref=e495] [cursor=pointer]:
+                - /url: /insights/what-fundraising-teaches-us-about-people
+          - listitem [ref=e496]:
+            - generic [ref=e497]:
+              - generic [ref=e498]:
+                - generic [ref=e499]:
+                  - generic [ref=e500]:
+                    - generic [ref=e501]: July 8, 2026
+                    - generic [ref=e502]: ·
+                    - generic [ref=e503]: 2 min read
+                  - heading "Is Face-To-Face Fundraising Right for Your Charity?" [level=3] [ref=e504]
+                - link "Read more" [ref=e506] [cursor=pointer]:
+                  - /url: /insights/face-face-fundraising-right-your-charity
+              - link [ref=e511] [cursor=pointer]:
+                - /url: /insights/face-face-fundraising-right-your-charity
+          - listitem [ref=e512]:
+            - generic [ref=e513]:
+              - generic [ref=e514]:
+                - generic [ref=e515]:
+                  - generic [ref=e516]: July 7, 2026
+                  - heading "Sample post with no image" [level=3] [ref=e518]
+                - paragraph [ref=e520]: This is a sample excerpt A closer look at one of our longest-standing charity partnerships and what a decade of face-to-face fundraising has achieved.
+                - link "Read more" [ref=e522] [cursor=pointer]:
+                  - /url: /insights/sample-post-with-no-image
+              - link [ref=e526] [cursor=pointer]:
+                - /url: /insights/sample-post-with-no-image
+        - generic [ref=e527]:
+          - generic [ref=e528]:
+            - generic [ref=e529]:
+              - generic [ref=e530]: The TPF Podcast
+              - heading "Listen to The Professional Fundraiser Podcast" [level=3] [ref=e532]
+            - paragraph [ref=e534]: Long-form conversations with the people shaping professional fundraising. From campaign stories to operational insight.
+            - generic [ref=e535]:
+              - link "Listen now" [ref=e537] [cursor=pointer]:
+                - /url: /podcast
+              - paragraph [ref=e544]:
+                - text: Want to be a part of the podcast?
+                - link "Contact us" [ref=e545] [cursor=pointer]:
+                  - /url: /contact
+          - list [ref=e547]:
+            - listitem [ref=e548]:
+              - generic [ref=e551]:
+                - generic [ref=e552]: Latest episode
+                - generic [ref=e553]: Episode 6 | The Field Sales Manager's Guide to Good Fundraising
+    - generic [ref=e556]:
+      - generic [ref=e557]:
+        - generic [ref=e558]: CONNECT WITH US
+        - heading "Follow us on Instagram" [level=2] [ref=e562]
+      - region [ref=e563]:
+        - generic [ref=e564]:
+          - group [aria-hidden] [ref=e565]:
+            - link [ref=e566] [cursor=pointer]:
+              - /url: /instagram-posts/sunset-beach-vibes
+          - group [aria-hidden] [ref=e567]:
+            - link [ref=e568] [cursor=pointer]:
+              - /url: /instagram-posts/delicious-foodie-adventures
+          - group [aria-hidden] [ref=e569]:
+            - link [ref=e570] [cursor=pointer]:
+              - /url: /instagram-posts/travel-diaries-2023
+          - group [aria-hidden] [ref=e571]:
+            - link [ref=e572] [cursor=pointer]:
+              - /url: /instagram-posts/fitness-journey-tips
+          - group [aria-hidden] [ref=e573]:
+            - link [ref=e574] [cursor=pointer]:
+              - /url: /instagram-posts/artistic-expressions-gallery
+          - group [aria-hidden] [ref=e575]:
+            - link [ref=e576] [cursor=pointer]:
+              - /url: /instagram-posts/nature-wonders-exploration
+          - group [aria-hidden] [ref=e577]:
+            - link [ref=e578] [cursor=pointer]:
+              - /url: /instagram-posts/fashion-inspo-2023
+          - group [aria-hidden] [ref=e579]:
+            - link [ref=e580] [cursor=pointer]:
+              - /url: /instagram-posts/music-lovers-unite
+          - group [aria-hidden] [ref=e581]:
+            - link [ref=e582] [cursor=pointer]:
+              - /url: /instagram-posts/home-decor-ideas
+          - group [aria-hidden] [ref=e583]:
+            - link [ref=e584] [cursor=pointer]:
+              - /url: /instagram-posts/tech-gadgets-review
+          - group "1 of 10" [ref=e585]:
+            - link [ref=e586] [cursor=pointer]:
+              - /url: /instagram-posts/sunset-beach-vibes
+          - group "2 of 10" [ref=e587]:
+            - link [ref=e588] [cursor=pointer]:
+              - /url: /instagram-posts/delicious-foodie-adventures
+          - group "3 of 10" [ref=e589]:
+            - link [ref=e590] [cursor=pointer]:
+              - /url: /instagram-posts/travel-diaries-2023
+          - group [aria-hidden] [ref=e591]:
+            - link [ref=e592] [cursor=pointer]:
+              - /url: /instagram-posts/fitness-journey-tips
+          - group [aria-hidden] [ref=e593]:
+            - link [ref=e594] [cursor=pointer]:
+              - /url: /instagram-posts/artistic-expressions-gallery
+          - group [aria-hidden] [ref=e595]:
+            - link [ref=e596] [cursor=pointer]:
+              - /url: /instagram-posts/nature-wonders-exploration
+          - group [aria-hidden] [ref=e597]:
+            - link [ref=e598] [cursor=pointer]:
+              - /url: /instagram-posts/fashion-inspo-2023
+          - group [aria-hidden] [ref=e599]:
+            - link [ref=e600] [cursor=pointer]:
+              - /url: /instagram-posts/music-lovers-unite
+          - group [aria-hidden] [ref=e601]:
+            - link [ref=e602] [cursor=pointer]:
+              - /url: /instagram-posts/home-decor-ideas
+          - group [aria-hidden] [ref=e603]:
+            - link [ref=e604] [cursor=pointer]:
+              - /url: /instagram-posts/tech-gadgets-review
+          - group [aria-hidden] [ref=e605]:
+            - link [ref=e606] [cursor=pointer]:
+              - /url: /instagram-posts/sunset-beach-vibes
+          - group [aria-hidden] [ref=e607]:
+            - link [ref=e608] [cursor=pointer]:
+              - /url: /instagram-posts/delicious-foodie-adventures
+          - group [aria-hidden] [ref=e609]:
+            - link [ref=e610] [cursor=pointer]:
+              - /url: /instagram-posts/travel-diaries-2023
+          - group [aria-hidden] [ref=e611]:
+            - link [ref=e612] [cursor=pointer]:
+              - /url: /instagram-posts/fitness-journey-tips
+          - group [aria-hidden] [ref=e613]:
+            - link [ref=e614] [cursor=pointer]:
+              - /url: /instagram-posts/artistic-expressions-gallery
+          - group [aria-hidden] [ref=e615]:
+            - link [ref=e616] [cursor=pointer]:
+              - /url: /instagram-posts/nature-wonders-exploration
+          - group [aria-hidden] [ref=e617]:
+            - link [ref=e618] [cursor=pointer]:
+              - /url: /instagram-posts/fashion-inspo-2023
+          - group [aria-hidden] [ref=e619]:
+            - link [ref=e620] [cursor=pointer]:
+              - /url: /instagram-posts/music-lovers-unite
+          - group [aria-hidden] [ref=e621]:
+            - link [ref=e622] [cursor=pointer]:
+              - /url: /instagram-posts/home-decor-ideas
+          - group [aria-hidden] [ref=e623]:
+            - link [ref=e624] [cursor=pointer]:
+              - /url: /instagram-posts/tech-gadgets-review
+        - generic [ref=e625]:
+          - button "Go to last slide" [ref=e626] [cursor=pointer]
+          - button "Next slide" [ref=e629] [cursor=pointer]
+    - generic [ref=e637]:
+      - generic [ref=e638]:
+        - generic [ref=e639]:
+          - generic [ref=e640]: Begin a Conversation
+          - heading "Every meaningful partnership begins with a conversation." [level=3] [ref=e641]
+        - paragraph [ref=e644]: Whether you're a charity looking for representation, a fundraiser ready to build a serious career, or someone whose strengths belong behind the scenes, there's a place for you within the work we do.
+        - paragraph [ref=e647]:
+          - emphasis [ref=e648]: If our way of thinking resonates with you, we'd be glad to start a conversation.
+      - generic [ref=e649]:
+        - link "Speak to the Partnerships Team For charities seeking representation" [ref=e650] [cursor=pointer]:
+          - /url: "#"
+          - generic [ref=e652]:
+            - generic [ref=e653]: Speak to the Partnerships Team
+            - generic [ref=e654]: For charities seeking representation
+        - link "Apply to Join the Field For fundraisers ready to build a serious career" [ref=e658] [cursor=pointer]:
+          - /url: "#"
+          - generic [ref=e660]:
+            - generic [ref=e661]: Apply to Join the Field
+            - generic [ref=e662]: For fundraisers ready to build a serious career
+        - link "Explore Careers Behind the Scenes For those whose strengths belong in operations" [ref=e666] [cursor=pointer]:
+          - /url: "#"
+          - generic [ref=e668]:
+            - generic [ref=e669]: Explore Careers Behind the Scenes
+            - generic [ref=e670]: For those whose strengths belong in operations
+  - contentinfo [ref=e674]:
+    - generic [ref=e676]:
+      - generic [ref=e677]:
+        - generic [ref=e678]:
+          - heading "Sign up to our monthly newsletter" [level=3] [ref=e679]
+          - generic [ref=e680]: Get the latest updates on articles, events, podcast episodes and more.
+        - form "Email Form" [ref=e682]:
+          - generic [ref=e683]:
+            - generic [ref=e684]: Email Address
+            - textbox "Email Address" [ref=e685]:
+              - /placeholder: Email address
+            - button "Subscribe" [disabled] [ref=e687]
+      - generic [ref=e688]:
+        - generic [ref=e689]:
+          - heading "The TPF Podcast" [level=3] [ref=e690]
+          - generic [ref=e691]: Long-form conversations shaping professional fundraising
+        - generic [ref=e692]:
+          - link "Spotify" [ref=e694] [cursor=pointer]:
+            - /url: "#"
+          - link "Apple Podcasts" [ref=e703] [cursor=pointer]:
+            - /url: "#"
+      - generic [ref=e711]:
+        - generic [ref=e713]:
+          - link [ref=e714] [cursor=pointer]:
+            - /url: "#"
+          - paragraph [ref=e716]: The Dutch BarnChurch Farm, Astwick RoadAstwick, SG5 4BH
+        - generic [ref=e717]:
+          - generic [ref=e718]: Navigate
+          - generic [ref=e720]:
+            - link "Story" [ref=e721] [cursor=pointer]:
+              - /url: /story
+            - link "Partnerships" [ref=e722] [cursor=pointer]:
+              - /url: /partnerships
+            - link "Fundraisers" [ref=e723] [cursor=pointer]:
+              - /url: /fundraisers
+            - link "Backstage" [ref=e724] [cursor=pointer]:
+              - /url: /backstage
+            - link "Journal" [ref=e725] [cursor=pointer]:
+              - /url: /journal
+        - generic [ref=e726]:
+          - generic [ref=e727]: Company
+          - generic [ref=e729]:
+            - link "Contact" [ref=e730] [cursor=pointer]:
+              - /url: /contact
+            - link "Sustainability" [ref=e731] [cursor=pointer]:
+              - /url: /sustainability
+            - link "Careers" [ref=e732] [cursor=pointer]:
+              - /url: "#"
+            - link "Privacy Policy" [ref=e733] [cursor=pointer]:
+              - /url: /privacy-policy
+            - link "Terms & Conditions" [ref=e734] [cursor=pointer]:
+              - /url: "#"
+        - generic [ref=e735]: Certifications & Memberships
+      - generic [ref=e739]:
+        - generic [ref=e740]: Copyright © The Professional Fundraiser 2026
+        - generic [ref=e741]: The Professional Fundraiser Ltd is a company registered in England and Wales with company number 7743120 and VAT number GB124771615.

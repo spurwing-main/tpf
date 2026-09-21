@@ -10,6 +10,7 @@ import { initVideos } from "./videos.js";
 import { initFaqSchema } from "./faq-schema.js";
 import { initWhatsapp } from "./whatsapp.js";
 import { initWhatsappPin } from "./whatsapp-pin.js";
+import { initApplicationForms } from "./application-form.js";
 
 vi.mock("plyr", () => ({ default: class PlyrDefaultDouble {} }));
 
@@ -53,6 +54,10 @@ describe("module registry", () => {
 
 	it("registers the WhatsApp pin initializer with the site boot sequence", () => {
 		expect(modules).toContainEqual({ name: "whatsappPin", init: initWhatsappPin });
+	});
+
+	it("registers the application form initializer with the site boot sequence", () => {
+		expect(modules).toContainEqual({ name: "applicationForms", init: initApplicationForms });
 	});
 
 	it("registers the custom testimonial initializer after generic sliders", () => {
