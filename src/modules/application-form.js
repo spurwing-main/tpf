@@ -393,12 +393,12 @@ function setupAddress(root, options) {
 				}
 			}
 			autocomplete.removeAttribute("name");
-			if (search.getAttribute("placeholder"))
-				autocomplete.placeholder = search.getAttribute("placeholder");
-		search.replaceWith(autocomplete);
-		search = autocomplete;
+			autocomplete.placeholder = "Start typing your address";
 
-		const onSelect = async ({ placePrediction }) => {
+			search.replaceWith(autocomplete);
+			search = autocomplete;
+
+			const onSelect = async ({ placePrediction }) => {
 				try {
 					const place = placePrediction?.toPlace?.();
 					if (!place?.fetchFields) throw new Error("Selected place is unavailable.");
