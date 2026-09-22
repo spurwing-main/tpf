@@ -3,8 +3,9 @@ import { initApplicationForms, loadGoogleMaps } from "./application-form.js";
 
 function applicationMarkup() {
 	return `
-		<section class="apply" data-apply-form data-apply-role-value="Garden Volunteer">
-			<form data-google-maps-api-key="demo-key">
+		<section class="apply" data-apply-form>
+			<form data-google-maps-api-key="demo-key" data-apply-role-value="General application">
+				<h2>Apply for this role</h2>
 				<div data-apply-address>
 					<input data-apply-address-search type="search" name="Search Address" />
 					<button type="button" data-apply-address-manual-trigger>Enter address manually</button>
@@ -25,13 +26,24 @@ function applicationMarkup() {
 				</div>
 				<fieldset data-apply-campaign-group>
 					<legend>Preferred campaigns</legend>
-					<div data-apply-campaign-source>
-						<label data-apply-campaign-option><input type="checkbox" name="Checkbox" value="Conservation" /><span>Conservation</span></label>
-						<label data-apply-campaign-option><input type="checkbox" name="Checkbox" value="Education" /><span>Education</span></label>
-						<label data-apply-campaign-option><input type="checkbox" name="Checkbox" value="Community" /><span>Community</span></label>
-					</div>
 					<input type="hidden" data-apply-campaign-output name="Preferred Charity Campaigns" />
 					<p data-apply-campaign-message aria-live="polite"></p>
+					<div data-apply-campaign-list>
+						<div class="w-dyn-list">
+							<div role="list" class="w-dyn-items">
+								<div role="listitem" class="w-dyn-item">
+									<div data-apply-campaign-option>
+										<input type="checkbox" name="Preferred Charity Campaigns" value="Environmental Conservation" />
+									</div>
+								</div>
+								<div role="listitem" class="w-dyn-item">
+									<div data-apply-campaign-option>
+										<input type="checkbox" name="Preferred Charity Campaigns" value="Mental Health Awareness" />
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
 				</fieldset>
 				<textarea data-apply-cover-note></textarea>
 				<input type="hidden" data-apply-role />
@@ -95,7 +107,7 @@ describe("initApplicationForms", () => {
 			["Friend", "A friend"],
 			["Social media", "Social media"],
 		]);
-		expect(document.querySelector("[data-apply-role]").value).toBe("Garden Volunteer");
+		expect(document.querySelector("[data-apply-role]").value).toBe("General application");
 		expect(document.querySelector("[data-apply-page-url]").value).toBe("https://example.com/apply");
 		expect(textarea.style.height).toBe("120px");
 
@@ -106,11 +118,23 @@ describe("initApplicationForms", () => {
 
 	it("requires one campaign, aggregates selected labels, and caps selections at ten", () => {
 		const root = document.querySelector("[data-apply-form]");
-		const source = root.querySelector("[data-apply-campaign-source]");
-		for (let index = 3; index < 11; index += 1) {
-			source.insertAdjacentHTML(
+		const list = root.querySelector("[data-apply-campaign-list] [role='list']");
+		list.insertAdjacentHTML(
 				"beforeend",
-				`<label data-apply-campaign-option><input type="checkbox" value="Campaign ${index}" /><span>Campaign ${index}</span></label>`,
+				`<div role="listitem" class="w-dyn-item">
+					<div data-apply-campaign-option>
+						<input type="checkbox" name="Preferred Charity Campaigns" value="Disaster Relief" />
+					</div>
+				</div>`,
+			);
+		for (let index = 3; index < 11; index += 1) {
+			list.insertAdjacentHTML(
+				"beforeend",
+				`<div role="listitem" class="w-dyn-item">
+					<div data-apply-campaign-option>
+						<input type="checkbox" name="Preferred Charity Campaigns" value="Campaign ${index}" />
+					</div>
+				</div>`,
 			);
 		}
 
@@ -125,13 +149,33 @@ describe("initApplicationForms", () => {
 		const message = root.querySelector("[data-apply-campaign-message]");
 		expect(checkboxes.every((checkbox) => !checkbox.name)).toBe(true);
 
+		const wanted = new Set([
+			"Environmental Conservation",
+			"Mental Health Awareness",
+			"Disaster Relief",
+		]);
+		checkboxes.forEach((checkbox) => {
+			checkbox.checked = wanted.has(checkbox.value);
+			checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+		});
+
+		const expected =
+			"Environmental Conservation, Mental Health Awareness, Disaster Relief";
+		const form = root.querySelector("form");
+		expect(output.value).toBe(expected);
+		expect(checkboxes.every((checkbox) => !checkbox.name)).toBe(true);
+		expect(new FormData(form).getAll("Preferred Charity Campaigns")).toEqual([expected]);
+
+		checkboxes.forEach((checkbox) => {
+			checkbox.checked = false;
+		});
 		checkboxes[0].dispatchEvent(new Event("change", { bubbles: true }));
 		expect(checkboxes[0].validationMessage).toContain("Select at least one");
 
 		checkboxes[0].checked = true;
 		checkboxes[1].checked = true;
 		checkboxes[0].dispatchEvent(new Event("change", { bubbles: true }));
-		expect(output.value).toBe("Conservation, Education");
+		expect(output.value).toBe("Environmental Conservation, Mental Health Awareness");
 		expect(checkboxes[0].validationMessage).toBe("");
 
 		checkboxes.slice(2).forEach((checkbox) => {
@@ -145,6 +189,48 @@ describe("initApplicationForms", () => {
 		checkboxes[0].checked = false;
 		checkboxes[0].dispatchEvent(new Event("change", { bubbles: true }));
 		expect(checkboxes[10].disabled).toBe(false);
+	});
+
+	it("reads role metadata from the nested form attribute", () => {
+		initApplicationForms(document, {
+			loadGoogleMaps: vi.fn().mockResolvedValue({
+				places: { PlaceAutocompleteElement: FakePlaceAutocompleteElement },
+			}),
+		});
+
+		expect(document.querySelector("[data-apply-role]").value).toBe("General application");
+	});
+
+	it("does not use form text when the role attribute is empty", () => {
+		const form = document.querySelector("form");
+		form.setAttribute("data-apply-role-value", "");
+
+		initApplicationForms(document, {
+			loadGoogleMaps: vi.fn().mockResolvedValue({
+				places: { PlaceAutocompleteElement: FakePlaceAutocompleteElement },
+			}),
+		});
+
+		expect(document.querySelector("[data-apply-role]").value).toBe("");
+		expect(document.querySelector("[data-apply-role]").value).not.toContain(
+			"Apply for this role",
+		);
+	});
+
+	it("keeps page metadata when role metadata is absent", () => {
+		const form = document.querySelector("form");
+		form.removeAttribute("data-apply-role-value");
+
+		initApplicationForms(document, {
+			loadGoogleMaps: vi.fn().mockResolvedValue({
+				places: { PlaceAutocompleteElement: FakePlaceAutocompleteElement },
+			}),
+		});
+
+		expect(document.querySelector("[data-apply-role]").value).toBe("");
+		expect(document.querySelector("[data-apply-page-url]").value).toBe(
+			"https://example.com/apply",
+		);
 	});
 
 	it("reveals and populates editable UK address fields from Google Places", async () => {

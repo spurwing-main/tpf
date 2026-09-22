@@ -17,6 +17,7 @@ const SELECTOR = {
 	campaignList: "[data-apply-campaign-list]",
 	coverNote: "[data-apply-cover-note]",
 	role: "[data-apply-role]",
+	roleValue: "[data-apply-role-value]",
 	pageUrl: "[data-apply-page-url]",
 };
 
@@ -103,14 +104,18 @@ function setupCoverNotes(root) {
 	return () => cleanups.forEach((cleanup) => cleanup());
 }
 
+function getRoleValue(root) {
+	const source = root.matches(SELECTOR.roleValue)
+		? root
+		: root.querySelector(SELECTOR.roleValue);
+
+	return source?.getAttribute("data-apply-role-value")?.trim() || "";
+}
+
 function setupMetadata(root) {
 	const ownerDocument = root.ownerDocument || document;
 	const view = ownerDocument.defaultView || globalThis;
-	const roleValue =
-		root.getAttribute("data-apply-role-value") ||
-		root.querySelector("[data-apply-role-value]")?.value ||
-		root.querySelector("[data-apply-role-value]")?.textContent.trim() ||
-		"";
+	const roleValue = getRoleValue(root);
 
 	root.querySelectorAll(SELECTOR.role).forEach((field) => {
 		setDefaultName(field, "Role");
