@@ -235,6 +235,28 @@ Keep visual values in Webflow or in an Embed. Use modules only for browser behav
 
 Use `data-*` attributes as the interface between Webflow, CSS, and JS. Do not use style class names as controls.
 
+## Reveal animations
+
+Add this guard to the Webflow site `<head>`. It prevents a flash before the bundle starts while preserving the loader's visibility fallback:
+
+```css
+html.tpf-loading [data-reveal] {
+	visibility: hidden;
+}
+```
+
+Use `data-reveal="up"`, `data-reveal="fade"`, or `data-reveal="media"` on animation targets. The media preset supplies the curtain effect and should be placed on a transform-free image wrapper.
+
+```html
+<section data-reveal-group data-reveal-trigger="load" data-reveal-stagger="90">
+	<p data-reveal="fade">Eyebrow</p>
+	<h1 data-reveal="up">Headline</h1>
+	<figure data-reveal="media"><img src="image.jpg" alt="" /></figure>
+</section>
+```
+
+Reveals use DOM order. Scroll is the default trigger; set `data-reveal-trigger="load"` on a group or standalone target for the intro sequence. Optional controls are `data-reveal-stagger` and `data-reveal-delay` in milliseconds, plus `data-reveal-start="early|default|late"`. Motion plays once and is disabled when the visitor prefers reduced motion.
+
 ## Panel stacks
 
 The `panelStack` module supports item-driven components such as Values and Services. Keep styling classes component-specific, and add these shared attributes to the markup:

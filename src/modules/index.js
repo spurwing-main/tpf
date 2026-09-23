@@ -12,9 +12,13 @@ import { initFaqSchema } from "./faq-schema.js";
 import { initWhatsapp } from "./whatsapp.js";
 import { initWhatsappPin } from "./whatsapp-pin.js";
 import { initApplicationForms } from "./application-form.js";
+import { initIntroOverlay } from "./intro-overlay.js";
+import { initReveals } from "./reveals.js";
 
 // Import each module here. Keep the start order explicit.
 export const modules = [
+	{ name: "introOverlay", init: initIntroOverlay },
+	{ name: "reveals", init: initReveals },
 	{ name: "dialogs", init: initDialogs },
 	{ name: "nav", init: initNav },
 	{ name: "navScroll", init: initNavScrollState },
