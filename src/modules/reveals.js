@@ -1,22 +1,27 @@
 const REVEAL_SELECTOR = "[data-reveal]";
 const GROUP_SELECTOR = "[data-reveal-group]";
+const FINSWEET_LIST_SELECTOR = '[fs-list-element="list"]';
 const INTRO_REVEAL_EVENT = "tpf:intro:reveal";
 const INTRO_ACTIVE_CLASS = "tpf-intro-active";
 const INTRO_REVEAL_READY_ATTRIBUTE = "data-intro-reveal-ready";
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 const ALLOW_MOTION_QUERY = "(prefers-reduced-motion: no-preference)";
 const REVEAL_CLEAR_PROPS = "opacity,visibility,transform,clipPath";
-const DURATION = 1.1;
-const EASE = "power2.out";
-const DEFAULT_STAGGER = 0.25;
-const LOAD_DURATION = 1.1;
-const LOAD_EASE = "power3.out";
-const LOAD_STAGGER = 0.25;
-const MEDIA_DURATION = 1.2;
-const MEDIA_EASE = "power3.out";
+const MEDIA_VISUAL_SELECTOR = ":scope > img, :scope > picture > img";
+const DURATION = 0.9;
+const EASE = "power4.out";
+const DEFAULT_STAGGER = 0.08;
+
+const LOAD_DURATION = 1;
+const LOAD_EASE = "power4.out";
+const LOAD_STAGGER = 0.08;
+
+const MEDIA_DURATION = 1.3;
+const MEDIA_EASE = "power3.inOut";
+
+const MAX_TOTAL_STAGGER = 0.4;
 const MAX_STAGGER = 2000;
-const MAX_TOTAL_STAGGER = 4;
-const MAX_DELAY = 400;
+const MAX_DELAY = 10000;
 
 const START_POSITIONS = Object.freeze({
 	early: "top 90%",
@@ -34,11 +39,7 @@ const PRESETS = Object.freeze({
 		clearProps: "opacity,visibility",
 	},
 	media: {
-		from: { clipPath: "inset(0 0 100% 0)", scale: 1.04, autoAlpha: 0 },
-		to: { clipPath: "inset(0 0 0% 0)", scale: 1, autoAlpha: 1 },
-		clearProps: "clipPath,transform,opacity,visibility",
-		duration: MEDIA_DURATION,
-		ease: MEDIA_EASE,
+		type: "media",
 	},
 });
 
@@ -98,6 +99,47 @@ function capGroupStagger(stagger, targetCount) {
 	return Math.min(stagger, MAX_TOTAL_STAGGER / (targetCount - 1));
 }
 
+function getMediaVisual(element) {
+	return element.querySelector?.(MEDIA_VISUAL_SELECTOR) ?? element;
+}
+
+function addMediaAnimation(timeline, element, position) {
+	const visual = getMediaVisual(element);
+	timeline.fromTo(
+		element,
+		{ clipPath: "inset(0 0 100% 0)" },
+		{
+			clipPath: "inset(0 0 0% 0)",
+			duration: MEDIA_DURATION,
+			ease: MEDIA_EASE,
+			clearProps: "clipPath",
+		},
+		position,
+	);
+	timeline.fromTo(
+		element,
+		{ autoAlpha: 0 },
+		{
+			autoAlpha: 1,
+			duration: DURATION,
+			ease: EASE,
+			clearProps: "opacity,visibility",
+		},
+		position,
+	);
+	timeline.fromTo(
+		visual,
+		{ scale: 1.04 },
+		{
+			scale: 1,
+			duration: DURATION,
+			ease: EASE,
+			clearProps: "transform",
+		},
+		position,
+	);
+}
+
 function animateTargets(
 	targets,
 	gsap,
@@ -107,6 +149,10 @@ function animateTargets(
 	targets.forEach((element, index) => {
 		const preset = readPreset(element);
 		const position = delayFor(element) + index * stagger;
+		if (preset.type === "media") {
+			addMediaAnimation(timeline, element, position);
+			return;
+		}
 		const variables = {
 			duration: preset.duration ?? duration,
 			ease: preset.ease ?? ease,
@@ -122,7 +168,12 @@ function animateTargets(
 }
 
 function clearRevealStyles(targets, gsap) {
-	for (const target of new Set(targets)) {
+	const cleanupTargets = new Set();
+	for (const target of targets) {
+		cleanupTargets.add(target);
+		if (target.dataset?.reveal === "media") cleanupTargets.add(getMediaVisual(target));
+	}
+	for (const target of cleanupTargets) {
 		gsap.set(target, { clearProps: REVEAL_CLEAR_PROPS });
 	}
 }
@@ -226,7 +277,7 @@ function initStandalone(element, gsap, ScrollTrigger, ownerDocument, reducedMoti
 	return { timeline, targets: [element], scrollTrigger };
 }
 
-export function initReveals(
+function initRevealTree(
 	root = document,
 	gsap = globalThis.gsap,
 	ScrollTrigger = globalThis.ScrollTrigger,
@@ -281,6 +332,86 @@ export function initReveals(
 	const cleanup = () => {
 		mediaContext?.revert?.();
 		fallbackCleanup?.();
+		initializedRoots.delete(root);
+	};
+	initializedRoots.set(root, cleanup);
+	return cleanup;
+}
+
+function initFinsweetReveals(root, gsap, ScrollTrigger, providedFinsweetAttributes) {
+	if (
+		root.nodeType !== 9 ||
+		!root.querySelector(FINSWEET_LIST_SELECTOR) ||
+		!gsap?.timeline ||
+		!gsap?.set
+	) {
+		return () => {};
+	}
+
+	const ownerWindow = root.defaultView || globalThis;
+	const FinsweetAttributes =
+		providedFinsweetAttributes ??
+		ownerWindow.FinsweetAttributes ??
+		(ownerWindow.FinsweetAttributes = []);
+	if (!FinsweetAttributes?.push) return () => {};
+
+	const knownElements = new WeakSet();
+	const removeHooks = new Set();
+	const dynamicCleanups = new Set();
+	let disposed = false;
+
+	FinsweetAttributes.push([
+		"list",
+		(listInstances = []) => {
+			if (disposed) return;
+			for (const listInstance of listInstances) {
+				for (const item of listInstance.renderedItems ?? []) {
+					if (item?.element) knownElements.add(item.element);
+				}
+
+				const removeHook = listInstance.addHook?.("afterRender", (renderedItems = []) => {
+					if (disposed) return renderedItems;
+					let initializedNewReveal = false;
+					for (const item of renderedItems) {
+						const element = item?.element;
+						if (!element || knownElements.has(element)) continue;
+						knownElements.add(element);
+						if (!getMatchingTree(element, REVEAL_SELECTOR).length) continue;
+
+						dynamicCleanups.add(initRevealTree(element, gsap, ScrollTrigger));
+						initializedNewReveal = true;
+					}
+					if (initializedNewReveal) ScrollTrigger?.refresh?.();
+					return renderedItems;
+				});
+				if (typeof removeHook === "function") removeHooks.add(removeHook);
+			}
+		},
+	]);
+
+	return () => {
+		disposed = true;
+		for (const removeHook of removeHooks) removeHook();
+		for (const cleanup of dynamicCleanups) cleanup();
+		removeHooks.clear();
+		dynamicCleanups.clear();
+	};
+}
+
+export function initReveals(
+	root = document,
+	gsap = globalThis.gsap,
+	ScrollTrigger = globalThis.ScrollTrigger,
+	FinsweetAttributes,
+) {
+	const existingCleanup = initializedRoots.get(root);
+	if (existingCleanup) return existingCleanup;
+
+	const treeCleanup = initRevealTree(root, gsap, ScrollTrigger);
+	const finsweetCleanup = initFinsweetReveals(root, gsap, ScrollTrigger, FinsweetAttributes);
+	const cleanup = () => {
+		finsweetCleanup();
+		treeCleanup();
 		initializedRoots.delete(root);
 	};
 	initializedRoots.set(root, cleanup);

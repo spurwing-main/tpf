@@ -110,25 +110,66 @@ describe("initReveals", () => {
 		});
 	});
 
-	it("supports the media curtain preset without retaining clip or transform styles", () => {
+	it("splits a media reveal across the wrapper and its image child", () => {
 		document.body.innerHTML = '<figure data-reveal="media"><img alt="" /></figure>';
 		const { gsap, timelines } = createGsap();
 
 		cleanup = initReveals(document, gsap, null);
 
-		expect(timelines[0].entries[0]).toMatchObject({
+		const wrapper = document.querySelector("figure");
+		const image = document.querySelector("img");
+		expect(timelines[0].entries).toEqual([
+			{
+				method: "fromTo",
+				target: wrapper,
+				from: { clipPath: "inset(0 0 100% 0)" },
+				to: {
+					clipPath: "inset(0 0 0% 0)",
+					duration: 1.3,
+					ease: "power3.inOut",
+					clearProps: "clipPath",
+				},
+				position: 0,
+			},
+			{
+				method: "fromTo",
+				target: wrapper,
+				from: { autoAlpha: 0 },
+				to: {
+					autoAlpha: 1,
+					duration: 0.9,
+					ease: "power4.out",
+					clearProps: "opacity,visibility",
+				},
+				position: 0,
+			},
+			{
+				method: "fromTo",
+				target: image,
+				from: { scale: 1.04 },
+				to: {
+					scale: 1,
+					duration: 0.9,
+					ease: "power4.out",
+					clearProps: "transform",
+				},
+				position: 0,
+			},
+		]);
+	});
+
+	it("keeps direct image media reveals backwards compatible", () => {
+		document.body.innerHTML = '<img data-reveal="media" alt="" />';
+		const { gsap, timelines } = createGsap();
+
+		cleanup = initReveals(document, gsap, null);
+
+		const image = document.querySelector("img");
+		expect(timelines[0].entries).toHaveLength(3);
+		expect(timelines[0].entries[2]).toMatchObject({
 			method: "fromTo",
-			from: {
-				clipPath: "inset(0 0 100% 0)",
-				scale: 1.04,
-			},
-			to: {
-				clipPath: "inset(0 0 0% 0)",
-				scale: 1,
-				duration: 0.85,
-				ease: "power3.inOut",
-				clearProps: "clipPath,transform",
-			},
+			target: image,
+			from: { scale: 1.04 },
 		});
 	});
 
@@ -177,6 +218,68 @@ describe("initReveals", () => {
 		}
 	});
 
+	it("initializes reveals only for newly rendered Finsweet list items", async () => {
+		document.body.innerHTML = `
+			<div fs-list-element="list">
+				<article class="w-dyn-item" id="existing-item">
+					<div data-reveal-group>
+						<div data-reveal="fade">Existing</div>
+					</div>
+				</article>
+			</div>
+		`;
+		const existingItem = document.querySelector("#existing-item");
+		const existingListItem = { element: existingItem };
+		let afterRender;
+		const removeHook = vi.fn();
+		const listInstance = {
+			renderedItems: new Set([existingListItem]),
+			addHook: vi.fn((name, handler) => {
+				if (name === "afterRender") afterRender = handler;
+				return removeHook;
+			}),
+		};
+		const FinsweetAttributes = {
+			push: vi.fn(([name, callback]) => {
+				if (name === "list") callback([listInstance]);
+			}),
+		};
+		const { gsap } = createGsap();
+		const ScrollTrigger = {
+			create: vi.fn(() => ({ kill: vi.fn() })),
+			refresh: vi.fn(),
+		};
+
+		cleanup = initReveals(document, gsap, ScrollTrigger, FinsweetAttributes);
+		expect(ScrollTrigger.create).toHaveBeenCalledOnce();
+
+		const newItem = document.createElement("article");
+		newItem.className = "w-dyn-item";
+		newItem.innerHTML = `
+			<div data-reveal-group>
+				<div data-reveal="fade">New</div>
+			</div>
+		`;
+		document.querySelector('[fs-list-element="list"]').append(newItem);
+		const renderedItems = [existingListItem, { element: newItem }];
+
+		await afterRender(renderedItems);
+
+		expect(ScrollTrigger.create).toHaveBeenCalledTimes(2);
+		expect(ScrollTrigger.create.mock.calls[1][0].trigger).toBe(
+			newItem.querySelector("[data-reveal-group]"),
+		);
+		expect(ScrollTrigger.refresh).toHaveBeenCalledOnce();
+
+		await afterRender(renderedItems);
+		expect(ScrollTrigger.create).toHaveBeenCalledTimes(2);
+		expect(ScrollTrigger.refresh).toHaveBeenCalledOnce();
+
+		cleanup();
+		cleanup = null;
+		expect(removeHook).toHaveBeenCalledOnce();
+	});
+
 	it("reconfigures reveals when the reduced-motion preference changes", () => {
 		document.body.innerHTML = '<div data-reveal="up">Content</div>';
 		const element = document.querySelector("[data-reveal]");
@@ -193,5 +296,22 @@ describe("initReveals", () => {
 
 		media.activate(false);
 		expect(timelines).toHaveLength(2);
+	});
+
+	it("clears both media layers when reduced motion is enabled", () => {
+		document.body.innerHTML = '<figure data-reveal="media"><img alt="" /></figure>';
+		const wrapper = document.querySelector("figure");
+		const image = document.querySelector("img");
+		const { gsap, media } = createGsap({ withMatchMedia: true });
+
+		cleanup = initReveals(document, gsap, null);
+		media.activate(true);
+
+		expect(gsap.set).toHaveBeenCalledWith(wrapper, {
+			clearProps: "opacity,visibility,transform,clipPath",
+		});
+		expect(gsap.set).toHaveBeenCalledWith(image, {
+			clearProps: "opacity,visibility,transform,clipPath",
+		});
 	});
 });

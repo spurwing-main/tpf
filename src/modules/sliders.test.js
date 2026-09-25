@@ -28,13 +28,13 @@ class SplideDouble {
 	}
 }
 
-function splideMarkup(attributes = "", slideCount = 0) {
+function splideMarkup(attributes = "", slideCount = 0, controls = "") {
 	const slides = Array.from(
 		{ length: slideCount },
 		(_, index) => `<li class="splide__slide">Slide ${index + 1}</li>`,
 	).join("");
 
-	return `<section class="splide" ${attributes}><div class="splide__track"><ul class="splide__list">${slides}</ul></div></section>`;
+	return `<section class="splide" ${attributes}>${controls}<div class="splide__track"><ul class="splide__list">${slides}</ul></div></section>`;
 }
 
 function createMediaQueryList(matches = false) {
@@ -262,6 +262,195 @@ describe("initSliders", () => {
 			expect.objectContaining({ type: "loop", arrows: true, pagination: true }),
 			expect.objectContaining({ type: "slide", arrows: false, pagination: false }),
 		]);
+	});
+
+	it("prepares a marked list as the pagination placeholder when pagination is enabled", () => {
+		document.body.innerHTML = splideMarkup(
+			'data-splide-pagination="true"',
+			3,
+			"<ul data-splide-pagination-wrapper></ul>",
+		);
+
+		initSliders(document, SplideDouble);
+
+		const wrapper = document.querySelector("[data-splide-pagination-wrapper]");
+		expect(wrapper.classList.contains("splide__pagination")).toBe(true);
+	});
+
+	it("leaves a marked pagination list inactive when pagination is disabled", () => {
+		document.body.innerHTML = splideMarkup(
+			'data-splide-pagination="false"',
+			3,
+			"<ul data-splide-pagination-wrapper></ul>",
+		);
+
+		initSliders(document, SplideDouble);
+
+		const wrapper = document.querySelector("[data-splide-pagination-wrapper]");
+		expect(wrapper.classList.contains("splide__pagination")).toBe(false);
+		expect(SplideDouble.instances[0].options.pagination).toBe(false);
+	});
+
+	it("keeps the pagination wrapper separate from the arrows", () => {
+		document.body.innerHTML = splideMarkup(
+			'data-splide-arrows="true" data-splide-pagination="true"',
+			3,
+			`<div data-controls>
+				<div class="splide__arrows">
+					<button class="splide__arrow splide__arrow--prev"></button>
+					<button class="splide__arrow splide__arrow--next"></button>
+				</div>
+				<ul data-splide-pagination-wrapper></ul>
+			</div>`,
+		);
+
+		initSliders(document, SplideDouble);
+
+		const controls = document.querySelector("[data-controls]");
+		const arrows = controls.querySelector(".splide__arrows");
+		const wrapper = controls.querySelector("[data-splide-pagination-wrapper]");
+		expect(wrapper.parentElement).toBe(controls);
+		expect(arrows.nextElementSibling).toBe(wrapper);
+		expect(wrapper.classList.contains("splide__pagination")).toBe(true);
+	});
+
+	it("keeps the pagination wrapper between the arrow buttons", () => {
+		document.body.innerHTML = splideMarkup(
+			'data-splide-arrows="true" data-splide-pagination="true"',
+			3,
+			`<div class="splide__arrows">
+				<button class="splide__arrow splide__arrow--prev"></button>
+				<ul data-splide-pagination-wrapper></ul>
+				<button class="splide__arrow splide__arrow--next"></button>
+			</div>`,
+		);
+
+		initSliders(document, SplideDouble);
+
+		const previous = document.querySelector(".splide__arrow--prev");
+		const wrapper = document.querySelector("[data-splide-pagination-wrapper]");
+		const next = document.querySelector(".splide__arrow--next");
+		expect(previous.nextElementSibling).toBe(wrapper);
+		expect(wrapper.nextElementSibling).toBe(next);
+		expect(wrapper.classList.contains("splide__pagination")).toBe(true);
+	});
+
+	it("supports pagination without arrows", () => {
+		document.body.innerHTML = splideMarkup(
+			'data-splide-arrows="false" data-splide-pagination="true"',
+			3,
+			"<ul data-splide-pagination-wrapper></ul>",
+		);
+
+		initSliders(document, SplideDouble);
+
+		expect(SplideDouble.instances[0].options).toEqual(
+			expect.objectContaining({ arrows: false, pagination: true }),
+		);
+	});
+
+	it("does not claim a pagination wrapper owned by a nested splide", () => {
+		document.body.innerHTML = `
+			<section class="splide" data-splide-pagination="true">
+				<div class="splide__track">
+					<ul class="splide__list">
+						<li class="splide__slide">
+							<section class="splide" data-splide-custom>
+								<ul data-splide-pagination-wrapper></ul>
+								<div class="splide__track"><ul class="splide__list"></ul></div>
+							</section>
+						</li>
+					</ul>
+				</div>
+			</section>
+		`;
+
+		initSliders(document, SplideDouble);
+
+		const nestedWrapper = document.querySelector("[data-splide-pagination-wrapper]");
+		expect(nestedWrapper.classList.contains("splide__pagination")).toBe(false);
+	});
+
+	it("keeps a prepared pagination wrapper through mobile-only destroy and remount", () => {
+		const mediaQueryList = createMediaQueryList(true);
+		vi.stubGlobal("matchMedia", vi.fn(() => mediaQueryList));
+		document.body.innerHTML = splideMarkup(
+			'data-splide-mobile-only="true" data-splide-pagination="true"',
+			3,
+			"<ul data-splide-pagination-wrapper></ul>",
+		);
+
+		initSliders(document, SplideDouble);
+		const wrapper = document.querySelector("[data-splide-pagination-wrapper]");
+		mediaQueryList.setMatches(false);
+
+		expect(SplideDouble.instances[0].destroyed).toBe(true);
+		expect(wrapper.classList.contains("splide__pagination")).toBe(true);
+
+		mediaQueryList.setMatches(true);
+		expect(SplideDouble.instances).toHaveLength(2);
+		expect(wrapper.classList.contains("splide__pagination")).toBe(true);
+	});
+
+	it("removes only pagination classes introduced by the initializer during cleanup", () => {
+		document.body.innerHTML = `
+			${splideMarkup(
+				'data-splide-pagination="true"',
+				3,
+				'<ul data-splide-pagination-wrapper data-added></ul>',
+			)}
+			${splideMarkup(
+				'data-splide-pagination="true"',
+				3,
+				'<ul class="splide__pagination" data-splide-pagination-wrapper data-existing></ul>',
+			)}
+		`;
+
+		const cleanup = initSliders(document, SplideDouble);
+		const added = document.querySelector("[data-added]");
+		const existing = document.querySelector("[data-existing]");
+		expect(added.classList.contains("splide__pagination")).toBe(true);
+		expect(existing.classList.contains("splide__pagination")).toBe(true);
+
+		cleanup();
+
+		expect(added.classList.contains("splide__pagination")).toBe(false);
+		expect(existing.classList.contains("splide__pagination")).toBe(true);
+	});
+
+	it("lets Splide populate pagination buttons and accessibility attributes in the wrapper", () => {
+		vi.stubGlobal("matchMedia", vi.fn(() => createMediaQueryList(false)));
+		document.body.innerHTML = splideMarkup(
+			'data-splide-pagination="true"',
+			3,
+			"<ul data-splide-pagination-wrapper></ul>",
+		);
+
+		const cleanup = initSliders(document);
+		const wrapper = document.querySelector("[data-splide-pagination-wrapper]");
+		const buttons = [...wrapper.querySelectorAll(".splide__pagination__page")];
+
+		expect(document.querySelectorAll(".splide__pagination")).toHaveLength(1);
+		expect(buttons).toHaveLength(3);
+		expect(wrapper.getAttribute("role")).toBe("tablist");
+		expect(buttons.every((button) => button.getAttribute("role") === "tab")).toBe(true);
+		expect(buttons.every((button) => button.hasAttribute("aria-controls"))).toBe(true);
+
+		cleanup();
+	});
+
+	it("retains Splide's generated pagination fallback when no wrapper is supplied", () => {
+		vi.stubGlobal("matchMedia", vi.fn(() => createMediaQueryList(false)));
+		document.body.innerHTML = splideMarkup('data-splide-pagination="true"', 3);
+
+		const cleanup = initSliders(document);
+		const pagination = document.querySelector(".splide__pagination");
+
+		expect(pagination).not.toBeNull();
+		expect(pagination.hasAttribute("data-splide-pagination-wrapper")).toBe(false);
+		expect(pagination.querySelectorAll(".splide__pagination__page")).toHaveLength(3);
+
+		cleanup();
 	});
 
 	it("mounts autoscroll sliders with the extension and data-attribute options", () => {

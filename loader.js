@@ -11,7 +11,7 @@
 		environment: "auto",
 		localBase: "http://localhost:5500",
 		probeTimeout: 900,
-		readyTimeout: 4000,
+		readyTimeout: 10000,
 	});
 
 	const root = document.documentElement;

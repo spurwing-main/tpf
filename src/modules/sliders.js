@@ -1,5 +1,6 @@
 import Splide, {
 	CLASS_INITIALIZED,
+	CLASS_PAGINATION,
 	STATUS_CLASSES,
 } from "@splidejs/splide";
 import { AutoScroll } from "@splidejs/splide-extension-auto-scroll";
@@ -55,6 +56,24 @@ function getSlideMinimum(element) {
 
 function hasRequiredMarkup(element) {
 	return Boolean(getSlideList(element));
+}
+
+function getPaginationWrapper(element) {
+	return [...element.querySelectorAll("ul[data-splide-pagination-wrapper]")].find(
+		(wrapper) => wrapper.closest(".splide") === element,
+	);
+}
+
+function preparePaginationWrapper(element, enabled) {
+	if (!enabled) return { paginationWrapper: null, paginationClassAdded: false };
+
+	const paginationWrapper = getPaginationWrapper(element) ?? null;
+	const paginationClassAdded = Boolean(
+		paginationWrapper && !paginationWrapper.classList.contains(CLASS_PAGINATION),
+	);
+
+	paginationWrapper?.classList.add(CLASS_PAGINATION);
+	return { paginationWrapper, paginationClassAdded };
 }
 
 function createOptions(element) {
@@ -113,6 +132,10 @@ export function initSliders(root = document, SplideConstructor = Splide) {
 		.filter(hasRequiredMarkup)
 		.map((element) => {
 			const { options, autoscroll } = createOptions(element);
+			const { paginationWrapper, paginationClassAdded } = preparePaginationWrapper(
+				element,
+				options.pagination,
+			);
 			const minimum = getSlideMinimum(element);
 			const mobileOnly = isEnabled(element, "data-splide-mobile-only");
 			const needsMediaQuery = mobileOnly || minimum !== null;
@@ -120,6 +143,8 @@ export function initSliders(root = document, SplideConstructor = Splide) {
 			const mediaQuery = needsMediaQuery ? globalThis.matchMedia?.(MOBILE_QUERY) : null;
 			const record = {
 				element,
+				paginationWrapper,
+				paginationClassAdded,
 				minimum,
 				mobileOnly,
 				options,
@@ -141,5 +166,8 @@ export function initSliders(root = document, SplideConstructor = Splide) {
 		records.forEach((record) => {
 			record.mediaQuery?.removeEventListener?.("change", record.onMediaChange);
 			destroy(record);
+			if (record.paginationClassAdded) {
+				record.paginationWrapper.classList.remove(CLASS_PAGINATION);
+			}
 		});
 }
