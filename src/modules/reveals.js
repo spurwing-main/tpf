@@ -88,6 +88,16 @@ function readStart(group) {
 	return START_POSITIONS.default;
 }
 
+function readTrigger(element) {
+	const ownTrigger = element.getAttribute("data-reveal-trigger");
+	if (ownTrigger !== null) return ownTrigger;
+	return (
+		element.parentElement
+			?.closest(`${GROUP_SELECTOR}[data-reveal-trigger]`)
+			?.getAttribute("data-reveal-trigger") ?? "scroll"
+	);
+}
+
 function getGroupChildren(group) {
 	return [...group.querySelectorAll(REVEAL_SELECTOR)].filter(
 		(element) => element.closest(GROUP_SELECTOR) === group,
@@ -211,7 +221,7 @@ function initGroup(group, gsap, ScrollTrigger, ownerDocument, reducedMotion) {
 	const targets = getGroupChildren(group);
 	if (!targets.length || reducedMotion) return null;
 
-	const trigger = group.dataset.revealTrigger || "scroll";
+	const trigger = readTrigger(group);
 	const isLoadGroup = trigger === "load";
 	const requestedStagger = readBoundedNumber(
 		group,
@@ -251,7 +261,7 @@ function initGroup(group, gsap, ScrollTrigger, ownerDocument, reducedMotion) {
 
 function initStandalone(element, gsap, ScrollTrigger, ownerDocument, reducedMotion) {
 	if (element.closest(GROUP_SELECTOR) || reducedMotion) return null;
-	const trigger = element.dataset.revealTrigger || "scroll";
+	const trigger = readTrigger(element);
 	const isLoadReveal = trigger === "load";
 	const timeline = animateTargets([element], gsap, {
 		delayFor: (target) => readBoundedNumber(target, "data-reveal-delay", 0, MAX_DELAY),

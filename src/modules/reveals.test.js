@@ -94,6 +94,49 @@ describe("initReveals", () => {
 		expect(timelines[0].play).toHaveBeenCalledOnce();
 	});
 
+	it("inherits the load trigger for a nested group without an explicit trigger", () => {
+		document.body.innerHTML = `
+			<section data-reveal-group data-reveal-trigger="load">
+				<h1 data-reveal="up">Outer</h1>
+				<div data-reveal-group>
+					<p data-reveal="up">Inner</p>
+				</div>
+			</section>
+		`;
+		const { gsap, timelines } = createGsap();
+		const ScrollTrigger = { create: vi.fn(() => ({ kill: vi.fn() })) };
+
+		cleanup = initReveals(document, gsap, ScrollTrigger);
+
+		expect(timelines).toHaveLength(2);
+		expect(timelines.every((timeline) => timeline.play.mock.calls.length === 1)).toBe(true);
+		expect(ScrollTrigger.create).not.toHaveBeenCalled();
+	});
+
+	it("allows a nested group to override an inherited load trigger with scroll", () => {
+		document.body.innerHTML = `
+			<section data-reveal-group data-reveal-trigger="load">
+				<h1 data-reveal="up">Outer</h1>
+				<div data-reveal-group data-reveal-trigger="scroll">
+					<p data-reveal="up">Inner</p>
+				</div>
+			</section>
+		`;
+		const { gsap, timelines } = createGsap();
+		const ScrollTrigger = { create: vi.fn(() => ({ kill: vi.fn() })) };
+
+		cleanup = initReveals(document, gsap, ScrollTrigger);
+
+		expect(timelines).toHaveLength(2);
+		expect(timelines[0].play).toHaveBeenCalledOnce();
+		expect(timelines[1].play).not.toHaveBeenCalled();
+		expect(ScrollTrigger.create).toHaveBeenCalledOnce();
+		expect(ScrollTrigger.create.mock.calls[0][0]).toMatchObject({
+			trigger: document.querySelector('[data-reveal-trigger="scroll"]'),
+			once: true,
+		});
+	});
+
 	it("animates standard reveals back to their authored state and clears reveal styles", () => {
 		document.body.innerHTML = '<div data-reveal="up">Content</div>';
 		const { gsap, timelines } = createGsap();
