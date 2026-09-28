@@ -11,6 +11,7 @@ import { initFaqSchema } from "./faq-schema.js";
 import { initWhatsapp } from "./whatsapp.js";
 import { initWhatsappPin } from "./whatsapp-pin.js";
 import { initApplicationForms } from "./application-form.js";
+import { initInsightsToc } from "./insights-toc.js";
 
 vi.mock("plyr", () => ({ default: class PlyrDefaultDouble {} }));
 
@@ -58,6 +59,10 @@ describe("module registry", () => {
 
 	it("registers the application form initializer with the site boot sequence", () => {
 		expect(modules).toContainEqual({ name: "applicationForms", init: initApplicationForms });
+	});
+
+	it("registers the insights TOC initializer with the site boot sequence", () => {
+		expect(modules).toContainEqual({ name: "insightsToc", init: initInsightsToc });
 	});
 
 	it("registers the custom testimonial initializer after generic sliders", () => {
