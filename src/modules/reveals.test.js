@@ -216,6 +216,72 @@ describe("initReveals", () => {
 		});
 	});
 
+	it("prefers an explicit media target inside a composite wrapper", () => {
+		document.body.innerHTML = `
+			<figure data-reveal="media">
+				<img class="fallback" alt="" />
+				<div class="visual" data-reveal-media-target></div>
+				<span class="overlay">Caption</span>
+			</figure>
+		`;
+		const { gsap, timelines } = createGsap();
+
+		cleanup = initReveals(document, gsap, null);
+
+		const scaleEntries = timelines[0].entries.filter((entry) => entry.from?.scale === 1.04);
+		expect(scaleEntries).toHaveLength(1);
+		expect(scaleEntries[0].target).toBe(document.querySelector(".visual"));
+	});
+
+	it("finds a nested image without scaling overlay content", () => {
+		document.body.innerHTML = `
+			<figure data-reveal="media">
+				<div class="visual-wrap"><picture><img class="visual" alt="" /></picture></div>
+				<span class="overlay">Caption</span>
+			</figure>
+		`;
+		const { gsap, timelines } = createGsap();
+
+		cleanup = initReveals(document, gsap, null);
+
+		const scaleEntries = timelines[0].entries.filter((entry) => entry.from?.scale === 1.04);
+		expect(scaleEntries).toHaveLength(1);
+		expect(scaleEntries[0].target).toBe(document.querySelector(".visual"));
+		expect(scaleEntries.some((entry) => entry.target === document.querySelector(".overlay"))).toBe(
+			false,
+		);
+	});
+
+	it("supports a nested video as the media visual", () => {
+		document.body.innerHTML = `
+			<div data-reveal="media">
+				<div><video class="visual"></video></div>
+				<span class="overlay">Play video</span>
+			</div>
+		`;
+		const { gsap, timelines } = createGsap();
+
+		cleanup = initReveals(document, gsap, null);
+
+		const scaleEntries = timelines[0].entries.filter((entry) => entry.from?.scale === 1.04);
+		expect(scaleEntries).toHaveLength(1);
+		expect(scaleEntries[0].target).toBe(document.querySelector("video"));
+	});
+
+	it("curtains and fades a wrapper without adding a scale tween when no visual exists", () => {
+		document.body.innerHTML = `
+			<div data-reveal="media"><span class="overlay">Text only</span></div>
+		`;
+		const { gsap, timelines } = createGsap();
+
+		cleanup = initReveals(document, gsap, null);
+
+		expect(timelines[0].entries).toHaveLength(2);
+		expect(timelines[0].entries.every((entry) => entry.target === document.querySelector("div"))).toBe(
+			true,
+		);
+	});
+
 	it("caps the total stagger across a reveal group", () => {
 		document.body.innerHTML = `
 			<div data-reveal-group data-reveal-stagger="200">
@@ -354,6 +420,28 @@ describe("initReveals", () => {
 			clearProps: "opacity,visibility,transform,clipPath",
 		});
 		expect(gsap.set).toHaveBeenCalledWith(image, {
+			clearProps: "opacity,visibility,transform,clipPath",
+		});
+	});
+
+	it("cleans an explicit composite media target when reduced motion becomes active", () => {
+		document.body.innerHTML = `
+			<figure data-reveal="media">
+				<div data-reveal-media-target></div>
+				<span>Overlay</span>
+			</figure>
+		`;
+		const wrapper = document.querySelector("figure");
+		const visual = document.querySelector("[data-reveal-media-target]");
+		const { gsap, media } = createGsap({ withMatchMedia: true });
+
+		cleanup = initReveals(document, gsap, null);
+		media.activate(true);
+
+		expect(gsap.set).toHaveBeenCalledWith(wrapper, {
+			clearProps: "opacity,visibility,transform,clipPath",
+		});
+		expect(gsap.set).toHaveBeenCalledWith(visual, {
 			clearProps: "opacity,visibility,transform,clipPath",
 		});
 	});

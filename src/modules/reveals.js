@@ -7,7 +7,9 @@ const INTRO_REVEAL_READY_ATTRIBUTE = "data-intro-reveal-ready";
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 const ALLOW_MOTION_QUERY = "(prefers-reduced-motion: no-preference)";
 const REVEAL_CLEAR_PROPS = "opacity,visibility,transform,clipPath";
-const MEDIA_VISUAL_SELECTOR = ":scope > img, :scope > picture > img";
+const DIRECT_MEDIA_SELECTOR = "img, video";
+const MEDIA_TARGET_SELECTOR = "[data-reveal-media-target]";
+const MEDIA_VISUAL_SELECTOR = "img, picture > img, video";
 const DURATION = 0.9;
 const EASE = "power4.out";
 const DEFAULT_STAGGER = 0.08;
@@ -110,7 +112,12 @@ function capGroupStagger(stagger, targetCount) {
 }
 
 function getMediaVisual(element) {
-	return element.querySelector?.(MEDIA_VISUAL_SELECTOR) ?? element;
+	if (element.matches?.(DIRECT_MEDIA_SELECTOR)) return element;
+	return (
+		element.querySelector?.(MEDIA_TARGET_SELECTOR) ??
+		element.querySelector?.(MEDIA_VISUAL_SELECTOR) ??
+		null
+	);
 }
 
 function addMediaAnimation(timeline, element, position) {
@@ -137,17 +144,19 @@ function addMediaAnimation(timeline, element, position) {
 		},
 		position,
 	);
-	timeline.fromTo(
-		visual,
-		{ scale: 1.04 },
-		{
-			scale: 1,
-			duration: DURATION,
-			ease: EASE,
-			clearProps: "transform",
-		},
-		position,
-	);
+	if (visual) {
+		timeline.fromTo(
+			visual,
+			{ scale: 1.04 },
+			{
+				scale: 1,
+				duration: DURATION,
+				ease: EASE,
+				clearProps: "transform",
+			},
+			position,
+		);
+	}
 }
 
 function animateTargets(
@@ -181,7 +190,10 @@ function clearRevealStyles(targets, gsap) {
 	const cleanupTargets = new Set();
 	for (const target of targets) {
 		cleanupTargets.add(target);
-		if (target.dataset?.reveal === "media") cleanupTargets.add(getMediaVisual(target));
+		if (target.dataset?.reveal === "media") {
+			const visual = getMediaVisual(target);
+			if (visual) cleanupTargets.add(visual);
+		}
 	}
 	for (const target of cleanupTargets) {
 		gsap.set(target, { clearProps: REVEAL_CLEAR_PROPS });
