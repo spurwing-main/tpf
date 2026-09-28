@@ -12,6 +12,7 @@ import { initWhatsapp } from "./whatsapp.js";
 import { initWhatsappPin } from "./whatsapp-pin.js";
 import { initApplicationForms } from "./application-form.js";
 import { initInsightsToc } from "./insights-toc.js";
+import { initReveals } from "./reveals.js";
 
 vi.mock("plyr", () => ({ default: class PlyrDefaultDouble {} }));
 
@@ -28,13 +29,16 @@ describe("module registry", () => {
 		expect(modules).toContainEqual({ name: "accordions", init: initAccordions });
 	});
 
-	it("starts panel stacks after accordions so initial open state is available", () => {
+	it("starts panel stacks after accordions and before reveals", () => {
 		const accordionIndex = modules.findIndex(({ init }) => init === initAccordions);
 		const panelStackIndex = modules.findIndex(({ init }) => init === initPanelStack);
+		const revealsIndex = modules.findIndex(({ init }) => init === initReveals);
 
 		expect(accordionIndex).toBeGreaterThanOrEqual(0);
 		expect(panelStackIndex).toBe(accordionIndex + 1);
+		expect(revealsIndex).toBe(panelStackIndex + 1);
 		expect(modules[panelStackIndex]).toEqual({ name: "panelStack", init: initPanelStack });
+		expect(modules[revealsIndex]).toEqual({ name: "reveals", init: initReveals });
 	});
 
 	it("registers the stats initializer with the site boot sequence", () => {

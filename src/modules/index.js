@@ -19,7 +19,6 @@ import { initInsightsToc } from "./insights-toc.js";
 // Import each module here. Keep the start order explicit.
 export const modules = [
 	{ name: "introOverlay", init: initIntroOverlay },
-	{ name: "reveals", init: initReveals },
 	{ name: "dialogs", init: initDialogs },
 	{ name: "nav", init: initNav },
 	{ name: "navScroll", init: initNavScrollState },
@@ -28,6 +27,7 @@ export const modules = [
 	{ name: "testimonials", init: initTestimonials },
 	{ name: "accordions", init: initAccordions },
 	{ name: "panelStack", init: initPanelStack },
+	{ name: "reveals", init: initReveals },
 	{ name: "stats", init: initStats },
 	{ name: "videos", init: initVideos },
 	{ name: "faqSchema", init: initFaqSchema },
