@@ -10,25 +10,25 @@ const REVEAL_CLEAR_PROPS = "opacity,visibility,transform,clipPath";
 const DIRECT_MEDIA_SELECTOR = "img, video";
 const MEDIA_TARGET_SELECTOR = "[data-reveal-media-target]";
 const MEDIA_VISUAL_SELECTOR = "img, picture > img, video";
-const DURATION = 0.9;
+const DURATION = 1; // normal fade/up reveals
 const EASE = "power4.out";
 const DEFAULT_STAGGER = 0.08;
 
-const LOAD_DURATION = 1;
+const LOAD_DURATION = 1.2; // page-load reveals
 const LOAD_EASE = "power4.out";
 const LOAD_STAGGER = 0.08;
 
-const MEDIA_DURATION = 1.3;
-const MEDIA_EASE = "power3.inOut";
+const MEDIA_DURATION = 1.3; // the image/video curtain
+const MEDIA_EASE = "power3.out";
 
-const MAX_TOTAL_STAGGER = 0.4;
-const MAX_STAGGER = 2000;
-const MAX_DELAY = 10000;
+const MAX_TOTAL_STAGGER = 0.4; // the full sequence may span no more than 400ms. With many items, the individual gap is automatically reduced.
+const MAX_STAGGER = 2000; // caps an authored data-reveal-stagger at 2,000ms per item, although the 400ms total-group cap normally limits it much further.
+const MAX_DELAY = 10000; // caps data-reveal-delay at 10 seconds.
 
 const START_POSITIONS = Object.freeze({
 	early: "top 90%",
-	default: "top 85%",
-	late: "top 75%",
+	default: "top 75%",
+	late: "top 65%",
 });
 
 const PRESETS = Object.freeze({
