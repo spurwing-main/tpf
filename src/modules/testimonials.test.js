@@ -9,6 +9,8 @@ class SplideDouble {
 		this.options = options;
 		this.handlers = new Map();
 		this.syncedWith = null;
+		this.index = 0;
+		this.destinations = [];
 		this.mounted = false;
 		this.destroyed = false;
 		SplideDouble.instances.push(this);
@@ -25,6 +27,13 @@ class SplideDouble {
 
 	emit(event, ...args) {
 		for (const handler of this.handlers.get(event) || []) handler(...args);
+	}
+
+	go(destination) {
+		this.destinations.push(destination);
+		const count = this.element.querySelector(".splide__list").children.length;
+		this.index = ((destination % count) + count) % count;
+		return this;
 	}
 
 	sync(other) {
@@ -94,7 +103,7 @@ function testimonialMarkup(count = 5) {
 			<div role="listitem" class="u-display-contents w-dyn-item">
 				<div class="testimonials_media"><img data-testimonials="image" alt="" /></div>
 				<div class="testimonials_content">
-					<div class="testimonials_index">placeholder</div>
+					<div data-testimonials="counter">placeholder</div>
 					<div class="testimonials_main" data-testimonials="copy">Quote ${index + 1}</div>
 				</div>
 			</div>`,
@@ -151,7 +160,7 @@ describe("initTestimonials", () => {
 		});
 		expect(nav.options).toMatchObject({
 			type: "loop",
-			fixedWidth: "2rem",
+			fixedWidth: "3rem",
 			focus: "center",
 			isNavigation: true,
 		});
@@ -173,17 +182,39 @@ describe("initTestimonials", () => {
 		expect([...document.querySelectorAll(".testimonials-avatar")].every((avatar) => !avatar.classList.contains("is-active"))).toBe(true);
 	});
 
+	it("crosses avatar loop boundaries through the adjacent clones", () => {
+		document.body.innerHTML = testimonialMarkup(3);
+		const { gsap } = createGsapDouble();
+		initTestimonials(document, SplideDouble, gsap);
+		const [main, nav] = SplideDouble.instances;
+
+		nav.index = 2;
+		main.emit("move", 0, 2, 0);
+		expect(nav.destinations).toEqual([3]);
+
+		main.emit("move", 2, 0, 2);
+		expect(nav.destinations).toEqual([3, -1]);
+
+		// Navigation originating from an avatar has already set its index.
+		main.emit("move", 2, 0, 2);
+		expect(nav.destinations).toEqual([3, -1]);
+	});
+
 	it("updates the visible index and autoplay progress from Splide events", () => {
 		document.body.innerHTML = testimonialMarkup(5);
 		const { gsap } = createGsapDouble();
 		initTestimonials(document, SplideDouble, gsap);
 		const [main] = SplideDouble.instances;
 
+		expect([...document.querySelectorAll('[data-testimonials="counter"]')].map(
+			(counter) => counter.textContent,
+		)).toEqual(Array(5).fill("01 / 05"));
+
 		main.emit("move", 2, 0, 2);
 		main.emit("autoplay:playing", 0.5);
 
 		expect(
-			[...document.querySelectorAll(".testimonials_index")].every(
+			[...document.querySelectorAll('[data-testimonials="counter"]')].every(
 				(index) => index.textContent === "03 / 05",
 			),
 		).toBe(true);

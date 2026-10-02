@@ -125,32 +125,7 @@ function reconcile(record, isMobile) {
 	destroy(record);
 }
 
-function updateSlideCounters(root) {
-	const lists = new Set();
-	root.querySelectorAll('[data-testimonials="counter"]').forEach((counter) => {
-		const slide = counter.closest(".splide__slide");
-		if (slide?.parentElement) lists.add(slide.parentElement);
-	});
-
-	lists.forEach((list) => {
-		const slides = [...list.children].filter(
-			(slide) => slide.classList.contains("splide__slide") &&
-				!slide.classList.contains("splide__slide--clone"),
-		);
-		const width = Math.max(2, String(slides.length).length);
-		const total = String(slides.length).padStart(width, "0");
-		slides.forEach((slide, index) => {
-			const label = `${String(index + 1).padStart(width, "0")} / ${total}`;
-			slide.querySelectorAll('[data-testimonials="counter"]').forEach((counter) => {
-				counter.textContent = label;
-			});
-		});
-	});
-}
-
 export function initSliders(root = document, SplideConstructor = Splide) {
-	updateSlideCounters(root);
-
 	const records = [
 		...root.querySelectorAll(".splide:not([data-splide-custom]):not([data-testimonials])"),
 	] // exclude custom component splides

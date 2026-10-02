@@ -102,7 +102,7 @@ function formatIndex(index, total) {
 
 function updateIndex(component, index, total) {
 	const label = formatIndex(index, total);
-	component.querySelectorAll(".testimonials_index").forEach((element) => {
+	component.querySelectorAll('[data-testimonials="counter"]').forEach((element) => {
 		element.textContent = label;
 	});
 }
@@ -220,8 +220,9 @@ function initComponent(component, SplideConstructor, gsap) {
 		hasMultiple && navRoot && navSlides.length
 			? new SplideConstructor(navRoot, {
 					...NAV_OPTIONS,
-					type: count > 3 ? "loop" : "slide",
-					drag: count > 3,
+					type: "loop",
+					drag: true,
+					clones: Math.max(3, count),
 				})
 			: null;
 
@@ -232,6 +233,15 @@ function initComponent(component, SplideConstructor, gsap) {
 		motion.startImage(activeIndex);
 	});
 	main.on("move", (index) => {
+		// Preserve the nearby clone destination before Splide's sync forwards
+		// the fade carousel's wrapped index back to the avatar carousel.
+		if (nav && nav.index !== index) {
+			let offset = index - nav.index;
+			if (Math.abs(offset) > count / 2) {
+				offset -= Math.sign(offset) * count;
+			}
+			nav.go(nav.index + offset);
+		}
 		activeIndex = index;
 		updateIndex(component, index, count);
 		motion.setProgress(0);
