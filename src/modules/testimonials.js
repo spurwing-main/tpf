@@ -23,7 +23,7 @@ const MAIN_OPTIONS = {
 
 const NAV_OPTIONS = {
 	type: "loop",
-	fixedWidth: "3rem",
+	fixedWidth: "3.3rem" /* this must match our var(--testimonials--avatar-size) set in CSS */,
 	gap: "0rem",
 	focus: "center",
 	perMove: 1,
