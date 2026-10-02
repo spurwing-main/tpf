@@ -2,6 +2,24 @@ const LIST_SELECTOR = ".insight-main_sidebar-list";
 const LINK_SELECTOR = ".insight-main_sidebar-link";
 const CURRENT_CLASS = "w--current";
 const CURRENT_SELECTOR = `${LINK_SELECTOR}.${CURRENT_CLASS}`;
+const VARIANT_ATTRIBUTE = "data-wf--insight-main--variant";
+const observedMains = new WeakSet();
+
+function setupTocVariant(main) {
+	function updateVariant() {
+		if (!main.querySelector(`${LIST_SELECTOR} ${LINK_SELECTOR}`)) {
+			main.setAttribute(VARIANT_ATTRIBUTE, "no-toc");
+		} else if (main.getAttribute(VARIANT_ATTRIBUTE) === "no-toc") {
+			main.removeAttribute(VARIANT_ATTRIBUTE);
+		}
+	}
+
+	updateVariant();
+	if (observedMains.has(main)) return;
+	observedMains.add(main);
+	const observer = new MutationObserver(updateVariant);
+	observer.observe(main, { childList: true, subtree: true });
+}
 
 function classValueContains(value, className) {
 	return value?.split(/\s+/).includes(className) ?? false;
@@ -74,6 +92,7 @@ function setupInsightsToc(list) {
 }
 
 export function initInsightsToc(root = document) {
+	root.querySelectorAll(".insight-main").forEach(setupTocVariant);
 	root.querySelectorAll(LIST_SELECTOR).forEach(setupInsightsToc);
 }
 

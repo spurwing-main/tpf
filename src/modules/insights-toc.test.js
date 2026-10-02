@@ -156,6 +156,43 @@ describe("initInsightsToc", () => {
 		expect(() => initInsightsToc(document)).not.toThrow();
 	});
 
+	it.each([
+		"",
+		'<nav class="insight-main_sidebar-list"></nav>',
+	])("applies the no-toc variant when there are no TOC links (%s)", (content) => {
+		document.body.innerHTML = `<main class="insight-main">${content}</main>`;
+
+		initInsightsToc(document);
+
+		expect(document.querySelector(".insight-main").getAttribute("data-wf--insight-main--variant"))
+			.toBe("no-toc");
+	});
+
+	it("preserves the existing variant when a TOC exists", () => {
+		renderToc();
+		document.body.innerHTML = `<main class="insight-main" data-wf--insight-main--variant="default">${document.body.innerHTML}</main>`;
+
+		initInsightsToc(document);
+
+		expect(document.querySelector(".insight-main").getAttribute("data-wf--insight-main--variant"))
+			.toBe("default");
+	});
+
+	it("updates the variant when TOC links are generated or removed later", async () => {
+		document.body.innerHTML = '<main class="insight-main"><nav class="insight-main_sidebar-list"></nav></main>';
+		const main = document.querySelector(".insight-main");
+		const list = main.querySelector(LIST_SELECTOR);
+		initInsightsToc(document);
+
+		list.innerHTML = '<a class="insight-main_sidebar-link" href="#first">First heading</a>';
+		await flushMutations();
+		expect(main.hasAttribute("data-wf--insight-main--variant")).toBe(false);
+
+		list.replaceChildren();
+		await flushMutations();
+		expect(main.getAttribute("data-wf--insight-main--variant")).toBe("no-toc");
+	});
+
 	it("initializes each list only once", () => {
 		const { list } = renderToc();
 
